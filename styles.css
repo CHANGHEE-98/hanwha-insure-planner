@@ -2501,26 +2501,36 @@ input, select, button,
 }
 
 /* ==========================================================================
-   12. MOBILE & TABLET PORTRAIT ULTIMATE OPTIMIZATION OVERRIDE
+   12. MOBILE & TABLET PORTRAIT ULTIMATE OPTIMIZATION OVERRIDE (FULL WIDTH & TEXT VISIBLE)
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Mobile Spanning Ribbon Variable Tuning (Aligns JS math width calculation perfectly with 4px grid gap) */
+  /* Aligns JS math width calculation perfectly with 2px mobile grid gap */
   :root {
-    --cell-gap-pad: 4px !important;
+    --cell-gap-pad: 2px !important;
     --right-bridge: 2px !important;
   }
 
-  /* Day cells layout and aspect ratio */
+  /* Compress main layout padding to maximize screen usage (꽉 차게 최적화) */
+  .main-content {
+    padding: 12px 10px 16px 10px !important;
+  }
+
+  .glass-panel {
+    padding: 12px !important;
+    border-radius: var(--radius-sm) !important;
+  }
+
+  /* Day cells layout and aspect ratio - Auto-expand height to fit text chips! */
   .calendar-day-cell {
-    min-height: 48px !important;
+    min-height: 60px !important;
     aspect-ratio: auto !important;
-    padding: 4px !important;
+    padding: 3px !important;
     height: auto !important;
   }
 
-  /* Make sure days grid gap is small */
+  /* Tighten days grid gap */
   .calendar-days-grid {
-    gap: 4px !important;
+    gap: 2px !important;
   }
 
   /* Date layout inside header */
@@ -2529,59 +2539,79 @@ input, select, button,
   }
 
   .calendar-day-number {
-    font-size: 0.75rem !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
   }
 
-  /* Hide the inside-cell "2W 마감" text badge next to date to save space */
+  /* Compact 2W 마감 badge */
   .deadline-text-badge {
-    display: none !important;
+    font-size: 7.5px !important;
+    padding: 2px 4px !important;
+    height: 13px !important;
+    line-height: 1 !important;
+    border-radius: 2px !important;
   }
 
-  /* Highlight deadline dates with a solid small colored circle around the number instead */
+  /* Highlight deadline dates with a small colored circle around the number */
   .calendar-day-number.deadline-yellow {
-    box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.4) !important;
+    box-shadow: 0 0 0 1.5px rgba(255, 214, 0, 0.4) !important;
     border-radius: 50% !important;
-    padding: 2px !important;
+    padding: 1px !important;
   }
   .calendar-day-number.deadline-green {
-    box-shadow: 0 0 0 2px rgba(0, 200, 83, 0.4) !important;
+    box-shadow: 0 0 0 1.5px rgba(0, 200, 83, 0.4) !important;
     border-radius: 50% !important;
-    padding: 2px !important;
+    padding: 1px !important;
   }
   .calendar-day-number.deadline-blue {
-    box-shadow: 0 0 0 2px rgba(0, 176, 255, 0.4) !important;
+    box-shadow: 0 0 0 1.5px rgba(0, 176, 255, 0.4) !important;
     border-radius: 50% !important;
-    padding: 2px !important;
+    padding: 1px !important;
   }
   .calendar-day-number.deadline-orange {
-    box-shadow: 0 0 0 2px rgba(255, 109, 0, 0.4) !important;
+    box-shadow: 0 0 0 1.5px rgba(255, 109, 0, 0.4) !important;
     border-radius: 50% !important;
-    padding: 2px !important;
+    padding: 1px !important;
   }
 
-  /* Hide event text, make event chips into thin color strips */
+  /* Compact event chips containing readable text on mobile */
   .event-chips-container {
-    gap: 2px !important;
-    margin-top: 4px !important;
+    gap: 1.5px !important;
+    margin-top: 3px !important;
   }
 
   .event-chip {
-    height: 4px !important;
-    min-height: 4px !important;
-    line-height: 0 !important;
-    padding: 0 !important;
-    font-size: 0 !important;
-    color: transparent !important;
-    text-shadow: none !important;
+    height: 14px !important;
+    min-height: 14px !important;
+    line-height: 13px !important;
+    padding: 0 3px !important;
+    font-size: 7.5px !important;
+    font-weight: 700 !important;
+    color: #FFFFFF !important;
     border-radius: 2px !important;
-    margin: 1px 0 !important;
+    margin: 0 !important;
+    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.3) !important;
     box-shadow: none !important;
+    letter-spacing: -0.3px !important;
+    justify-content: flex-start !important; /* Align text left for better readability on narrow columns */
+    text-align: left !important;
+  }
+  
+  .event-chip.cat-two_annual {
+    color: #141619 !important; /* Dark text for yellow contrast */
   }
 
   .event-chip-placeholder {
-    height: 4px !important;
-    min-height: 4px !important;
-    margin: 1px 0 !important;
+    height: 14px !important;
+    min-height: 14px !important;
+    margin: 0 !important;
+  }
+
+  /* Hide middle/end text to keep row clean, starting text stays visible! */
+  .event-chips-container .event-chip.span-middle,
+  .event-chips-container .event-chip.span-end {
+    color: transparent !important;
+    text-shadow: none !important;
   }
 
   /* Prevent overlapping inside cell layout */
@@ -2591,7 +2621,7 @@ input, select, button,
   
   /* Make horizontal filter chips scrollable and neat on mobile */
   .category-filters {
-    gap: 8px !important;
+    gap: 6px !important;
     overflow-x: auto !important;
     padding: 4px 0 !important;
     width: 100% !important;
@@ -2599,8 +2629,8 @@ input, select, button,
   }
   
   .filter-chip {
-    padding: 6px 12px !important;
-    font-size: 0.75rem !important;
+    padding: 5px 10px !important;
+    font-size: 0.725rem !important;
   }
 }
 
