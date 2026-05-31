@@ -2504,6 +2504,12 @@ input, select, button,
    12. MOBILE & TABLET PORTRAIT ULTIMATE OPTIMIZATION OVERRIDE
    ========================================================================== */
 @media (max-width: 768px) {
+  /* Mobile Spanning Ribbon Variable Tuning (Aligns JS math width calculation perfectly with 4px grid gap) */
+  :root {
+    --cell-gap-pad: 4px !important;
+    --right-bridge: 2px !important;
+  }
+
   /* Day cells layout and aspect ratio */
   .calendar-day-cell {
     min-height: 48px !important;
