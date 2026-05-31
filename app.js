@@ -1027,6 +1027,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const inc = window.INCENTIVE_DATABASE.incentives.find(i => i.id === incentiveId);
     if (!inc) return;
 
+    window.currentActiveIncentiveId = incentiveId;
+    window.temporarySimulationValue = inc.currentValue;
+
     // Fill metadata headers
     document.getElementById('detail-incentive-title').textContent = inc.title;
     document.getElementById('detail-incentive-desc').textContent = inc.description;
@@ -1157,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const updateSimulation = (simVal) => {
         simVal = Number(simVal);
+        window.temporarySimulationValue = simVal;
         let displayVal = simVal;
         
         if (inc.metricType === 'premiums') {
@@ -1352,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const updateMilestones = (simVal) => {
         simVal = Number(simVal);
+        window.temporarySimulationValue = simVal;
         const unitLabel = inc.metricUnit === '만 포인트' ? '만pt' : inc.metricUnit;
         
         let displayVal = simVal;
@@ -1457,6 +1462,41 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (window.lucide) window.lucide.createIcons();
   }
+
+    // Bind Save Simulation Button click event
+    const btnSaveSim = document.getElementById('btn-save-simulation');
+    if (btnSaveSim) {
+      btnSaveSim.addEventListener('click', () => {
+        if (!window.currentActiveIncentiveId) return;
+        const activeInc = window.INCENTIVE_DATABASE.incentives.find(i => i.id === window.currentActiveIncentiveId);
+        if (activeInc) {
+          activeInc.currentValue = window.temporarySimulationValue;
+          
+          const profile = window.INCENTIVE_DATABASE.agentProfile;
+          if (activeInc.metricType === 'premiums') {
+            profile.currentStats.premiums = window.temporarySimulationValue;
+          } else if (activeInc.metricType === 'contracts') {
+            profile.currentStats.contracts = window.temporarySimulationValue;
+          } else if (activeInc.metricType === 'recruit_tier') {
+            profile.currentStats.recruits = window.temporarySimulationValue;
+          } else if (activeInc.metricType === 'two_tier') {
+            profile.currentStats.two连续 = window.temporarySimulationValue;
+          } else if (activeInc.id === 'inc-004') {
+            profile.currentStats.two连续 = window.temporarySimulationValue;
+          } else if (activeInc.id === 'inc-005') {
+            profile.currentStats.points = window.temporarySimulationValue;
+          }
+          
+          updateUserRoleView();
+          if (typeof window.refreshApp === 'function') {
+            window.refreshApp();
+          }
+          
+          closeBottomSheet();
+          alert(`"${activeInc.title}" 시뮬레이션 조정 실적이 실제 실적으로 반영되어 대시보드와 진척도가 성공적으로 업데이트되었습니다!`);
+        }
+      });
+    }
 
   // --- Initial Page Bootstrapping ---
   function initApp() {

@@ -2760,26 +2760,79 @@ input, select, button,
     font-weight: 800 !important;
   }
 
-  /* Make horizontal filter chips scrollable and neat on mobile */
-  .category-filters {
-    order: 2 !important;
+  /* 탭 버튼 모바일 래핑/단락 나뉨 방지 및 컴팩트화 */
+  .tab-buttons {
     display: flex !important;
     gap: 6px !important;
-    overflow-x: auto !important;
-    padding: 4px 2px !important;
     width: 100% !important;
-    justify-content: flex-start !important;
-    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .tab-btn {
+    flex: 1 !important;
+    padding: 10px 2px !important;
+    font-size: 0.775rem !important;
+    white-space: nowrap !important;
+    justify-content: center !important;
+    text-align: center !important;
+    letter-spacing: -0.4px !important;
+  }
+
+  .tab-btn i {
+    width: 13px !important;
+    height: 13px !important;
+    margin-right: 2px !important;
+  }
+
+  /* 4개 카테고리 필터 칩이 모바일 가로폭 내에 딱 맞게 한눈에 들어오도록 컴팩트 그리드로 설계 */
+  .category-filters {
+    order: 2 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+    padding: 4px 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    justify-content: space-between !important;
   }
 
   .category-filters::-webkit-scrollbar {
-    display: none !important; /* 가로 스크롤바 숨김으로 프리미엄 앱 UI 연출 */
+    display: none !important;
   }
 
   .filter-chip {
-    padding: 6px 12px !important;
-    font-size: 0.725rem !important;
-    flex-shrink: 0 !important; /* 스크롤 중 찌그러짐 방지 */
+    padding: 6px 0 !important;
+    font-size: 0.65rem !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    letter-spacing: -0.4px !important;
+  }
+
+  .filter-chip i {
+    display: none !important; /* 아이콘 제거로 충분한 텍스트 가로 공간 확보 */
+  }
+
+  /* 2W 마감일 원이 타원형으로 일그러지는 버그 원천 진압 (완벽한 동그라미 강제) */
+  .calendar-day-number.deadline-yellow,
+  .calendar-day-number.deadline-green,
+  .calendar-day-number.deadline-blue,
+  .calendar-day-number.deadline-orange {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1 !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    line-height: 20px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
   }
 
   /* 지점장 시상 목록 (.active-inc-item) 모바일 세로 레이아웃 및 겹침 해결 */
