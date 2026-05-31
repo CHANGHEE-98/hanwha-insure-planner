@@ -537,9 +537,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
           chipsContainer.appendChild(chip);
         } else {
-          const placeholder = document.createElement('div');
-          placeholder.className = 'event-chip-placeholder';
-          chipsContainer.appendChild(placeholder);
+          // 모바일(소프트 캡슐 배지 모드)에서는 플레이스홀더를 삽입하지 않아 날짜 바로 밑에 뱃지가 조밀하게 밀착 렌더링되게 보장
+          if (!isMobile) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'event-chip-placeholder';
+            chipsContainer.appendChild(placeholder);
+          }
         }
       }
 

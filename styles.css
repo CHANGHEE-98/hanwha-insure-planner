@@ -2729,6 +2729,7 @@ input, select, button,
   .event-chips-container .event-chip.span-middle,
   .event-chips-container .event-chip.span-end {
     display: flex !important;
+    pointer-events: auto !important; /* 포인터 이벤트 활성화로 캘린더상 어떤 캡슐 배지를 누르든 팝업이 즉시 뜨도록 보장 */
   }
 
   /* 카테고리별 프리미엄 아이폰 캘린더 감성 소프트 파스텔 색상 조율 */
@@ -2878,7 +2879,31 @@ input, select, button,
     box-sizing: border-box !important;
     line-height: 20px !important;
     padding: 0 !important;
-    margin: 0 auto !important;
+    margin: 0 !important; /* 마진 자동 정렬 제거 */
+  }
+
+  /* 2W 마감 뱃지 및 숫자 동그라미 절대 배치로 침범 원천 방지 */
+  .calendar-day-header-row {
+    position: relative !important;
+    height: 24px !important;
+    width: 100% !important;
+    display: block !important; /* flex 대신 block 정렬로 겹침 방지 */
+  }
+
+  .calendar-day-number {
+    position: absolute !important;
+    right: 2px !important;
+    top: 2px !important;
+    margin: 0 !important;
+  }
+
+  .deadline-text-badge {
+    position: absolute !important;
+    left: 2px !important;
+    top: 6px !important;
+    margin: 0 !important;
+    transform: scale(0.85) !important; /* 모바일 폭에 맞게 뱃지 스케일을 살짝 축소해 공간 마진 극대화 */
+    transform-origin: left center !important;
   }
 
   /* 지점장 시상 목록 (.active-inc-item) 모바일 세로 레이아웃 및 겹침 해결 */
@@ -2917,17 +2942,23 @@ input, select, button,
     font-size: 0.725rem !important;
   }
 
-  /* 모바일 바텀시트 시뮬레이터 초슬림 컴팩트화 (한눈에 스크롤 없이 다 보이게) */
+  /* 모바일 바텀시트 시뮬레이터 높이 70% 고정 및 스크롤바 없는 완전 피팅 */
   .bottom-sheet-container {
     padding: 12px 14px 14px 14px !important;
+    height: 70vh !important; /* 화면 높이의 70% 가득 차지하도록 고정 */
+    max-height: 70vh !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
   
   .bottom-sheet-handle {
     margin-bottom: 8px !important;
+    flex-shrink: 0 !important;
   }
   
   .bottom-sheet-header {
     margin-bottom: 8px !important;
+    flex-shrink: 0 !important;
   }
   
   .bottom-sheet-title {
@@ -2937,6 +2968,13 @@ input, select, button,
   
   .detail-description {
     display: none !important; /* 모바일 설명 자동 가려 공간 극대화 */
+  }
+
+  .sheet-body-scroll {
+    max-height: none !important; /* 기존의 최대 높이 제한을 무력화 */
+    height: calc(100% - 78px) !important; /* 전체 높이에서 헤더와 저장버튼 영역 제외한 나머지 100% 활용 */
+    overflow-y: auto !important;
+    margin-bottom: 8px !important;
   }
 
   .sheet-divider {
