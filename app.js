@@ -361,7 +361,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const yVal = parseInt(dateParts[0], 10);
       const mVal = parseInt(dateParts[1], 10) - 1;
       const dVal = parseInt(dateParts[2], 10);
-      const deadlineColor = TWOW_DEADLINES[yVal]?.[mVal]?.[dVal];
+      
+      // 1. 하드코딩 백업 체크
+      let deadlineColor = TWOW_DEADLINES[yVal]?.[mVal]?.[dVal];
+      
+      // 2. 등록된 2W 시상 데이터에서 마감일(종료일) 동적 검출 및 연계
+      const active2WIncentiveOnThisEndDate = window.INCENTIVE_DATABASE.incentives.find(inc => {
+        return (inc.category === 'two_annual' || inc.title.includes('2W')) 
+          && (inc.title.includes('마감') || inc.title.includes('주차별'))
+          && inc.endDate === dayObj.dateStr;
+      });
+
+      if (active2WIncentiveOnThisEndDate) {
+        const title = active2WIncentiveOnThisEndDate.title;
+        if (title.includes('1주')) deadlineColor = 'yellow';
+        else if (title.includes('2주')) deadlineColor = 'green';
+        else if (title.includes('3주')) deadlineColor = 'blue';
+        else if (title.includes('4주') || title.includes('당월')) deadlineColor = 'orange';
+        else deadlineColor = 'orange'; // 기본값
+      }
       
       if (deadlineColor) {
         numSpan.classList.add(`deadline-${deadlineColor}`);
@@ -423,9 +441,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         const isLongTerm = diffDays >= 30;
 
-        const isActiveToday = isLongTerm 
+        // 2W 주차별 마감 시상은 기간 가로 띠로 그리지 않고 스킵 (마감일 날짜 동그라미로만 표시)
+        const is2WWeeklyDeadline = (inc.category === 'two_annual' || inc.title.includes('2W')) 
+          && (inc.title.includes('마감') || inc.title.includes('주차별'));
+
+        const isActiveToday = !is2WWeeklyDeadline && (isLongTerm 
           ? (dayObj.dateStr === inc.endDate) 
-          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
+          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate));
 
         if (isActiveToday) {
           const isPrevActive = !isLongTerm && 

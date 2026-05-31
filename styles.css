@@ -2916,6 +2916,174 @@ input, select, button,
   .weekday-label {
     font-size: 0.725rem !important;
   }
+
+  /* 모바일 바텀시트 시뮬레이터 초슬림 컴팩트화 (한눈에 스크롤 없이 다 보이게) */
+  .bottom-sheet-container {
+    padding: 12px 14px 14px 14px !important;
+  }
+  
+  .bottom-sheet-handle {
+    margin-bottom: 8px !important;
+  }
+  
+  .bottom-sheet-header {
+    margin-bottom: 8px !important;
+  }
+  
+  .bottom-sheet-title {
+    font-size: 0.95rem !important;
+    margin-bottom: 2px !important;
+  }
+  
+  .detail-description {
+    display: none !important; /* 모바일 설명 자동 가려 공간 극대화 */
+  }
+
+  .sheet-divider {
+    margin: 6px 0 !important; /* 구분선 여백 압축 */
+  }
+
+  .simulator-wrapper, .milestones-simulator-wrapper {
+    padding: 8px 10px !important;
+    margin-top: 4px !important;
+    border-radius: 12px !important;
+  }
+
+  .simulator-header {
+    margin-bottom: 8px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .simulator-tag {
+    font-size: 0.775rem !important;
+  }
+
+  .simulation-metric-display {
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .metric-block {
+    padding: 5px 6px !important;
+    border-radius: 8px !important;
+    gap: 1px !important;
+  }
+
+  .metric-label {
+    font-size: 0.65rem !important;
+  }
+
+  .metric-value {
+    font-size: 0.9rem !important;
+  }
+
+  .metric-arrow {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .metric-arrow i {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .simulator-input-container {
+    margin: 8px 0 6px 0 !important;
+    gap: 8px !important;
+  }
+
+  .btn-sim-adjust {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    font-size: 1.1rem !important;
+  }
+
+  .simulator-num-input {
+    width: 120px !important;
+    height: 34px !important;
+    font-size: 1rem !important;
+    border-radius: 10px !important;
+  }
+
+  .sim-input-unit {
+    right: 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .sim-progress-bar-container {
+    height: 5px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .slider-progress-percentage {
+    font-size: 0.7rem !important;
+    margin-bottom: 8px !important;
+  }
+
+  .reward-highlight-box {
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+    gap: 6px !important;
+  }
+
+  .reward-icon-circle {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 10px !important;
+  }
+  
+  .reward-icon-circle i {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .reward-label {
+    font-size: 0.65rem !important;
+  }
+
+  .reward-title {
+    font-size: 0.75rem !important;
+  }
+  
+  .milestone-track-container {
+    margin: 8px 8px 12px 8px !important;
+    height: 5px !important;
+  }
+
+  .node-dot {
+    width: 7px !important;
+    height: 7px !important;
+  }
+  
+  .node-name {
+    font-size: 0.55rem !important;
+  }
+
+  .node-val {
+    font-size: 0.5rem !important;
+  }
+  
+  .milestone-gap-announcement {
+    font-size: 0.7rem !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* 모바일 바텀시트 스크롤 영역 슬림화 & 저장 버튼 고정 최적화 */
+  .sheet-body-scroll {
+    max-height: 240px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .simulator-actions {
+    margin-top: 6px !important;
+  }
+
+  .simulator-actions button {
+    padding: 8px 10px !important;
+    font-size: 0.875rem !important;
+    border-radius: 8px !important;
+  }
 }
 
 /* 드롭존 카드 인식 감도 및 범위 극대화 스타일 (자식 노드의 마우스 간섭 전면 차단) */
@@ -3398,4 +3566,15 @@ input, select, button,
 
 .btn-sim-adjust:active {
   transform: scale(0.95) !important;
+}
+
+/* ==========================================================================
+   30. TAB PANEL ACTIVE TOGGLE SYSTEM (PREVENTS TAB OVERLAPPING)
+   ========================================================================== */
+.tab-content-panel {
+  display: none !important;
+}
+
+.tab-content-panel.active {
+  display: block !important;
 }
