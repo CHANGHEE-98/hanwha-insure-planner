@@ -1,0 +1,2600 @@
+/**
+ * HANWHA PREMIUM INSURE INCENTIVES DESIGN SYSTEM (styles.css)
+ * Crafted for Hanwha Branch Managers & Sales Agents
+ * Gorgeous Glassmorphism, Responsive Grid Systems, Dynamic Interactive Calendar,
+ * Mobile-friendly Bottom Sheets, Interactive Gauges, and Admin AI Terminal Console.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap');
+
+/* ==========================================================================
+   1. ROOT VARIABLES & COLOR SYSTEM
+   ========================================================================== */
+:root {
+  /* Hanwha Brand Colors */
+  --primary: #F37321;              /* Hanwha Orange 100% (R243 G115 B33) */
+  --primary-rgb: 243, 115, 33;
+  --secondary: #F89B6C;            /* Hanwha Orange 70% (R248 G155 B108) */
+  --secondary-rgb: 248, 155, 108;
+  --tertiary: #FBB584;             /* Hanwha Orange 50% (R251 G181 B132) */
+  --tertiary-rgb: 251, 181, 132;
+  
+  /* Accent Colors */
+  --accent-success: #00C853;       /* Success Green */
+  --accent-success-rgb: 0, 200, 83;
+  --accent-info: #00B0FF;          /* Info Blue */
+  --accent-info-rgb: 0, 176, 255;
+  --accent-warning: #FFD600;       /* Warning Yellow */
+  --accent-warning-rgb: 255, 214, 0;
+  --accent-danger: #FF1744;        /* Danger Red */
+  --accent-danger-rgb: 255, 23, 68;
+
+  /* Theme: Dark Space Backgrounds (Default with Hanwha Black 100%) */
+  --bg-deep: #101112;              /* Hanwha Black Rich space */
+  --bg-card: #1C1E22;
+  --bg-elevated: #272A30;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(243, 115, 33, 0.2);
+  
+  /* Text colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A5B1;
+  --text-muted: #6B7280;
+  
+  /* Glassmorphism Defaults */
+  --glass-bg: rgba(31, 34, 38, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+  --backdrop-blur: 16px;
+
+  /* Layout Variables */
+  --sidebar-width: 280px;
+  --header-height: 80px;
+  
+  /* Corner Radii */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 32px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-serif: 'Noto Serif KR', Georgia, serif;
+  --font-sans: 'Noto Sans KR', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* Animation & Transitions */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  --transition-spring: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --cell-gap-pad: 32px;
+  --right-bridge: 10px;
+}
+
+/* Light Theme Override class */
+.theme-light {
+  --bg-deep: #F5F6F8;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #EBF0F5;
+  --border: rgba(0, 0, 0, 0.06);
+  --border-glow: rgba(255, 102, 0, 0.15);
+  
+  --text-primary: #1F2226;
+  --text-secondary: #4E5460;
+  --text-muted: #8E96A5;
+  
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-shadow: rgba(31, 34, 38, 0.08);
+}
+
+/* ==========================================================================
+   2. GLOBAL RESETS & STYLING BASE
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-serif);
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Premium custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-deep);
+  transition: background var(--transition-fast);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Selection highlight */
+::selection {
+  background-color: rgba(var(--primary-rgb), 0.3);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   3. APP LAYOUT SYSTEM (SIDEBAR & MAIN CONTENT)
+   ========================================================================== */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  background: radial-gradient(circle at 80% 20%, rgba(var(--primary-rgb), 0.05) 0%, transparent 40%),
+              radial-gradient(circle at 10% 80%, rgba(var(--accent-info-rgb), 0.03) 0%, transparent 45%),
+              var(--bg-deep);
+}
+
+/* Premium Sidebar Layout */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: transform var(--transition-spring), width var(--transition-normal);
+}
+
+.sidebar-logo-section {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-glowing {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 20px;
+  color: #FFFFFF;
+  box-shadow: 0 0 15px var(--orange-glow);
+  position: relative;
+}
+
+.logo-glowing::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-warning));
+  border-radius: 12px;
+  z-index: -1;
+  opacity: 0.5;
+  filter: blur(4px);
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.5px;
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-orange-tag {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.sidebar-nav {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  color: #FFFFFF;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15) 0%, rgba(var(--primary-rgb), 0.05) 100%);
+  border-left: 4px solid var(--primary);
+  box-shadow: inset 0 0 10px rgba(var(--primary-rgb), 0.05);
+}
+
+.nav-item-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.8;
+}
+
+.sidebar-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--bg-elevated), var(--border));
+  border: 2px solid var(--primary);
+  object-fit: cover;
+}
+
+.active-status-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--accent-success);
+  border: 2px solid var(--bg-card);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 8px var(--accent-success-glow);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Content Area & Header Container */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Prevents flex children from stretching */
+  padding: 0 40px 40px 40px;
+}
+
+/* Elegant Header */
+.app-header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+
+.header-title-section h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.header-title-section p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ==========================================================================
+   4. GLASSMORPHISM PANEL STYLES
+   ========================================================================== */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px var(--glass-shadow);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-spring);
+}
+
+/* Decorative glass reflections */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 150%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
+  transform: skewX(-25deg) translateX(-120%);
+  transition: transform 0.8s ease-in-out;
+  pointer-events: none;
+}
+
+.glass-panel:hover::before {
+  transform: skewX(-25deg) translateX(120%);
+}
+
+.glass-panel--interactive:hover {
+  border-color: rgba(var(--primary-rgb), 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 15px rgba(var(--primary-rgb), 0.1);
+  transform: translateY(-4px);
+}
+
+.glass-panel--glowing {
+  border-color: var(--border-glow);
+  box-shadow: 0 8px 32px var(--glass-shadow), 0 0 20px rgba(var(--primary-rgb), 0.05);
+}
+
+/* ==========================================================================
+   5. PREMIUM INTERACTIVE BUTTONS & CHIPS
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 15px var(--orange-glow);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.6);
+  filter: brightness(1.05);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+}
+
+.btn-glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  backdrop-filter: blur(4px);
+}
+
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(var(--primary-rgb), 0.4);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+}
+
+/* Event Chips (Gradient pills) */
+.event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.event-chip:hover {
+  transform: scale(1.05);
+  filter: brightness(1.15);
+  cursor: pointer;
+}
+
+.event-chip--success {
+  background: linear-gradient(135deg, rgba(var(--accent-success-rgb), 0.15) 0%, rgba(var(--accent-success-rgb), 0.05) 100%);
+  color: var(--accent-success);
+  border-color: rgba(var(--accent-success-rgb), 0.3);
+}
+
+.event-chip--info {
+  background: linear-gradient(135deg, rgba(var(--accent-info-rgb), 0.15) 0%, rgba(var(--accent-info-rgb), 0.05) 100%);
+  color: var(--accent-info);
+  border-color: rgba(var(--accent-info-rgb), 0.3);
+}
+
+.event-chip--warning {
+  background: linear-gradient(135deg, rgba(var(--accent-warning-rgb), 0.15) 0%, rgba(var(--accent-warning-rgb), 0.05) 100%);
+  color: var(--accent-warning);
+  border-color: rgba(var(--accent-warning-rgb), 0.3);
+}
+
+.event-chip--primary {
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15) 0%, rgba(var(--primary-rgb), 0.05) 100%);
+  color: var(--primary);
+  border-color: rgba(var(--primary-rgb), 0.3);
+}
+
+/* ==========================================================================
+   6. DYNAMIC CALENDAR SYSTEM
+   ========================================================================== */
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendar-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.calendar-month-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.calendar-nav-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.calendar-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.calendar-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Calendar Weekdays (7 columns) */
+.calendar-weekday-header {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.weekday-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* 7 Column Dynamic Grid */
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.calendar-day-cell {
+  aspect-ratio: 1.15;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  transition: all var(--transition-spring);
+  /* overflow: hidden; removed to allow spanning ribbons to bridge gaps */
+}
+
+.calendar-day-cell:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.calendar-day-cell:active {
+  transform: scale(0.98);
+}
+
+.calendar-day-cell.inactive {
+  opacity: 0.35;
+  background: transparent;
+  pointer-events: none;
+}
+
+.calendar-day-cell.today {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08) 0%, rgba(var(--primary-rgb), 0.02) 100%);
+  box-shadow: inset 0 0 10px rgba(var(--primary-rgb), 0.05);
+}
+
+.calendar-day-number {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  align-self: flex-end;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+  position: relative;
+  z-index: 10;
+}
+
+.calendar-day-number:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--primary) !important;
+  transform: scale(1.1);
+}
+
+.calendar-day-cell.today .calendar-day-number {
+  color: var(--primary);
+}
+
+.calendar-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  width: 100%;
+  overflow-y: auto;
+  max-height: 50px;
+}
+
+/* Event Dots / Miniature Pills in calendar cell */
+.calendar-event-bullet {
+  height: 6px;
+  border-radius: var(--radius-full);
+  width: 100%;
+  opacity: 0.85;
+}
+
+.calendar-event-bullet--success {
+  background: linear-gradient(to right, var(--accent-success), rgba(var(--accent-success-rgb), 0.5));
+}
+
+.calendar-event-bullet--info {
+  background: linear-gradient(to right, var(--accent-info), rgba(var(--accent-info-rgb), 0.5));
+}
+
+.calendar-event-bullet--warning {
+  background: linear-gradient(to right, var(--accent-warning), rgba(var(--accent-warning-rgb), 0.5));
+}
+
+.calendar-event-bullet--primary {
+  background: linear-gradient(to right, var(--primary), rgba(var(--primary-rgb), 0.5));
+}
+
+/* ==========================================================================
+   7. BOTTOM SHEET MOBILE PANELS & SIMULATORS
+   ========================================================================== */
+/* Overlay covering page */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.bottom-sheet-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Slide Up Container */
+.bottom-sheet-container {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 100%);
+  width: 100%;
+  max-width: 680px;
+  background: var(--bg-card);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-bottom: none;
+  padding: 24px 32px 40px 32px;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  transition: transform var(--transition-spring);
+}
+
+.bottom-sheet-overlay.active .bottom-sheet-container {
+  transform: translate(-50%, 0);
+}
+
+.bottom-sheet-handle {
+  width: 50px;
+  height: 5px;
+  background-color: var(--text-muted);
+  border-radius: var(--radius-full);
+  margin: 0 auto 24px auto;
+  opacity: 0.5;
+  cursor: grab;
+}
+
+.bottom-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.bottom-sheet-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.btn-close-sheet {
+  background: rgba(255, 255, 255, 0.05);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-close-sheet:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent-danger);
+}
+
+/* Interactive Simulator Sliders */
+.simulator-slider-wrapper {
+  margin-bottom: 28px;
+}
+
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.slider-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.slider-value {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--primary);
+}
+
+.simulator-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  outline: none;
+  margin: 12px 0;
+  position: relative;
+}
+
+.simulator-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+}
+
+.simulator-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  cursor: pointer;
+  border: 3px solid var(--bg-card);
+  box-shadow: 0 0 10px var(--orange-glow);
+  margin-top: -6px; /* center it vertically */
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.simulator-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.8);
+}
+
+/* Beautiful Interactive Progress Gauges */
+.progress-gauge-wrapper {
+  margin-top: 32px;
+}
+
+.progress-gauge-title-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.progress-gauge-track {
+  width: 100%;
+  height: 22px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  position: relative;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.progress-gauge-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(to right, var(--secondary), var(--primary));
+  box-shadow: 0 0 12px var(--orange-glow);
+  position: relative;
+  transition: width var(--transition-slow);
+}
+
+/* Glowing scanning highlight across fill */
+.progress-gauge-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.15) 50%, 
+    transparent 100%
+  );
+  animation: shine-bar 2.5s infinite linear;
+}
+
+@keyframes shine-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Milestone Markers along Gauge Track */
+.milestone-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 3px solid var(--text-muted);
+  z-index: 10;
+  transition: all var(--transition-normal);
+}
+
+.milestone-marker.achieved {
+  border-color: var(--accent-success);
+  background: var(--accent-success);
+  box-shadow: 0 0 10px var(--accent-success-glow);
+}
+
+.milestone-marker-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+
+.milestone-marker.achieved .milestone-marker-label {
+  color: var(--accent-success);
+  border-color: rgba(var(--accent-success-rgb), 0.2);
+}
+
+/* ==========================================================================
+   8. ADMIN TOOLS & AI CLI TERMINAL
+   ========================================================================== */
+.admin-tools-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Gorgeous Glowing Drag Drop Zone */
+.drag-drop-zone {
+  border: 2px dashed var(--border);
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: var(--radius-md);
+  padding: 36px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.drag-drop-zone:hover {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.02);
+  box-shadow: inset 0 0 15px rgba(var(--primary-rgb), 0.05);
+}
+
+.drag-drop-zone.drag-active {
+  border-color: var(--accent-success);
+  background: rgba(var(--accent-success-rgb), 0.04);
+}
+
+.upload-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  font-size: 24px;
+  transition: transform var(--transition-spring);
+}
+
+.drag-drop-zone:hover .upload-icon-box {
+  transform: translateY(-4px) scale(1.05);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Scan Animation Overlay inside Drag & Drop */
+.drag-drop-zone .scanning-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to right, transparent, var(--primary), transparent);
+  box-shadow: 0 0 8px var(--primary);
+  opacity: 0;
+}
+
+.drag-drop-zone.scanning .scanning-bar {
+  opacity: 1;
+  animation: vertical-scan 2.2s infinite ease-in-out;
+}
+
+@keyframes vertical-scan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+
+/* Black CLI AI Terminal Console Wrapper */
+.ai-console-wrapper {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-header {
+  background: #141619;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.console-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.console-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.console-dot--red { background-color: #FF5F56; }
+.console-dot--yellow { background-color: #FFBD2E; }
+.console-dot--green { background-color: #27C93F; }
+
+.console-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Terminal logs and caret */
+.console-body {
+  font-family: var(--font-mono);
+  font-size: 0.825rem;
+  padding: 16px;
+  color: #33FF33; /* Neon Matrix Green */
+  line-height: 1.6;
+  max-height: 260px;
+  overflow-y: auto;
+  min-height: 180px;
+}
+
+.console-log-line {
+  margin-bottom: 6px;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: console-fade-in 0.3s forwards cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.console-log-line.system {
+  color: #00E5FF;
+}
+
+.console-log-line.warning {
+  color: var(--accent-warning);
+}
+
+.console-log-line.hanwha {
+  color: var(--primary);
+  text-shadow: 0 0 4px rgba(var(--primary-rgb), 0.5);
+}
+
+.console-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.console-prompt-prefix {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.console-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  background-color: var(--primary);
+  animation: blink-caret 0.9s infinite step-end;
+}
+
+@keyframes blink-caret {
+  from, to { background-color: transparent }
+  50% { background-color: var(--primary); }
+}
+
+@keyframes console-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-mock-upload {
+  align-self: center;
+  margin-top: 12px;
+  width: 100%;
+}
+
+/* ==========================================================================
+   9. RESPONSIVE MEDIA QUERIES (DESKTOP & MOBILE TRANSITIONS)
+   ========================================================================== */
+
+/* Large Tablets & Small Laptops */
+@media (max-width: 1200px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+  
+  .main-content {
+    padding: 0 24px 24px 24px;
+  }
+}
+
+/* Medium Tablets & Mobile Devices */
+@media (max-width: 992px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  /* Transform Sidebar into Vertical Scroll Panel / Collapse on Mobile */
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .sidebar-logo-section {
+    height: 70px;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 12px 20px;
+    gap: 8px;
+    height: auto;
+    white-space: nowrap;
+    -scrollbar-width: none; /* Firefox */
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  .nav-item {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .nav-item.active {
+    border-left: none;
+    border-bottom: 3px solid var(--primary);
+  }
+
+  .sidebar-footer {
+    display: none; /* Hide user avatar in sidebar for compact layout */
+  }
+
+  .main-content {
+    padding: 20px;
+  }
+
+  .app-header {
+    margin-bottom: 24px;
+    height: auto;
+    padding-bottom: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* Small Smart Phones */
+@media (max-width: 576px) {
+  :root {
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --cell-gap-pad: 18px;
+    --right-bridge: 6px;
+  }
+
+  .glass-panel {
+    padding: 16px;
+  }
+
+  /* Convert 7-column calendar to horizontal scroll, or compact grid */
+  .calendar-weekday-header, .calendar-days-grid {
+    gap: 6px;
+  }
+
+  .weekday-label {
+    font-size: 0.7rem;
+  }
+
+  .calendar-day-cell {
+    aspect-ratio: 1;
+    padding: 6px;
+  }
+
+  .calendar-day-number {
+    font-size: 0.8rem;
+  }
+
+  .calendar-day-events {
+    display: none;
+  }
+
+  .event-chips-container {
+    gap: 2px !important;
+    margin-top: 2px !important;
+  }
+
+  .event-chip {
+    height: 4px !important;
+    line-height: 0 !important;
+    padding: 0 !important;
+    color: transparent !important;
+    text-shadow: none !important;
+    border-radius: 2px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .event-chip.span-start {
+    /* Auto-stretched on mobile using dynamic CSS formulas */
+  }
+
+  .event-chip.span-middle {
+    /* Handled by standard transparent spanning formulas */
+  }
+
+  .event-chip.span-end {
+    /* Handled by standard transparent spanning formulas */
+  }
+
+  .event-chip-placeholder {
+    height: 4px !important;
+    margin: 0 !important;
+  }
+
+  /* Bottom sheet responsive styling */
+  .bottom-sheet-container {
+    width: 100%;
+    border-radius: 0;
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+    padding: 16px 20px 32px 20px;
+  }
+
+  .bottom-sheet-title {
+    font-size: 1.25rem;
+  }
+
+  .progress-gauge-track {
+    height: 18px;
+  }
+
+  .milestone-marker-label {
+    display: none; /* Hide small milestones labels on mobile viewports */
+  }
+}
+
+/* Premium Dashboard Bottom Grid Layout */
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dynamic Calendar Ribbon Spanning Styles */
+.event-chips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.event-chip {
+  height: 22px !important;
+  line-height: 20px !important;
+  box-sizing: border-box;
+  padding: 0 8px !important;
+  margin: 1px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important; /* Centered text horizontally */
+  text-align: center !important;       /* Centered text */
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  width: 100% !important;
+  border-radius: 4px; /* default standalone border radius */
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2px !important;
+}
+
+/* Category-specific Premium Gradient Event Chips */
+.event-chip.cat-long_auto {
+  background: linear-gradient(135deg, #00B0FF, #00E5FF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(0, 176, 255, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.event-chip.cat-two_annual {
+  background: linear-gradient(135deg, #FFD600, #FFAB00) !important;
+  color: #141619 !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(255, 214, 0, 0.3) !important;
+  font-weight: 700 !important;
+}
+
+.event-chip.cat-recruitment {
+  background: linear-gradient(135deg, #00C853, #64DD17) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(0, 200, 83, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.event-chip.span-start {
+  border-top-left-radius: 4px !important;
+  border-bottom-left-radius: 4px !important;
+  border-top-right-radius: 4px !important; /* Rounded by default if it ends this week */
+  border-bottom-right-radius: 4px !important;
+  z-index: 20 !important; /* Draw over transparent elements */
+  position: relative !important;
+}
+
+/* If it continues to next week, flat right edge on Saturday */
+.event-chip.span-start.continues-next {
+  border-top-right-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+}
+
+/* If it continues from previous week, flat left edge on Sunday */
+.event-chip.span-start.continues-prev {
+  border-top-left-radius: 0px !important;
+  border-bottom-left-radius: 0px !important;
+}
+
+/* Specificity booster to override cat-* gradient backgrounds */
+.event-chips-container .event-chip.span-middle,
+.event-chips-container .event-chip.span-end {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+.event-chip-placeholder {
+  height: 22px;
+  margin: 1px 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Premium Filter Chips Styling */
+.category-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-secondary) !important;
+  transition: all var(--transition-fast) !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Category-specific Active states with Glowing and Gradients */
+.filter-chip.active[data-category="all"] {
+  background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(var(--primary-rgb), 0.4) !important;
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4), 0 0 10px rgba(var(--primary-rgb), 0.15) !important;
+}
+
+.filter-chip.active[data-category="long_auto"] {
+  background: linear-gradient(135deg, #00B0FF, #00E5FF) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(0, 176, 255, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 176, 255, 0.4), 0 0 10px rgba(0, 176, 255, 0.15) !important;
+}
+
+.filter-chip.active[data-category="two_annual"] {
+  background: linear-gradient(135deg, #FFD600, #FFAB00) !important;
+  color: #141619 !important; /* dark text for yellow contrast */
+  border-color: rgba(255, 214, 0, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(255, 214, 0, 0.4), 0 0 10px rgba(255, 214, 0, 0.15) !important;
+}
+
+.filter-chip.active[data-category="recruitment"] {
+  background: linear-gradient(135deg, #00C853, #64DD17) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(0, 200, 83, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 200, 83, 0.4), 0 0 10px rgba(0, 200, 83, 0.15) !important;
+}
+
+.filter-chip .icon-xs {
+  width: 14px;
+  height: 14px;
+  opacity: 0.9;
+}
+
+/* 2W / Annual Award Special Hero Dashboard Styling */
+#two-annual-hero-dashboard {
+  background: linear-gradient(135deg, rgba(31, 34, 38, 0.9) 0%, rgba(20, 22, 25, 0.95) 100%) !important;
+  border: 1px solid rgba(255, 214, 0, 0.25) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255, 214, 0, 0.05) !important;
+  padding: 24px !important;
+  margin-bottom: 24px !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.hero-dashboard-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-warning);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.hero-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.hero-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.hero-card-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-warning);
+}
+
+.hero-gauge-wrapper {
+  margin-top: 10px;
+  position: relative;
+}
+
+.hero-gauge-track {
+  width: 100%;
+  height: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  position: relative;
+  border: 1px solid var(--border);
+}
+
+.hero-gauge-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(to right, #FFAB00, #FFD600);
+  box-shadow: 0 0 10px rgba(255, 214, 0, 0.4);
+  transition: width 0.8s ease-in-out;
+}
+
+.hero-milestone-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid var(--text-muted);
+  z-index: 5;
+}
+
+.hero-milestone-indicator.achieved {
+  border-color: #FFD600;
+  background: #FFD600;
+  box-shadow: 0 0 6px #FFD600;
+}
+
+.hero-gap-message {
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.hero-reward-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 214, 0, 0.06);
+  border: 1px solid rgba(255, 214, 0, 0.15);
+  color: var(--accent-warning);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  margin-top: 12px;
+  align-self: flex-start;
+}
+
+/* Tab Content Visibility Controller */
+.tab-content-panel {
+  display: none !important;
+}
+
+.tab-content-panel.active {
+  display: block !important;
+}
+
+/* Mobile-optimized Selected Date Event Rows Styling */
+.selected-date-row {
+  transition: all var(--transition-fast) !important;
+}
+
+.selected-date-row:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  transform: translateX(4px) !important;
+}
+
+.selected-date-row.cat-long_auto {
+  border-left: 3px solid #00B0FF !important;
+}
+
+.selected-date-row.cat-two_annual {
+  border-left: 3px solid #FFD600 !important;
+}
+
+.selected-date-row.cat-recruitment {
+  border-left: 3px solid #00C853 !important;
+}
+
+/* Selected Calendar Cell Glowing Ring Highlight */
+.calendar-day-cell.selected {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 12px rgba(var(--primary-rgb), 0.35), inset 0 0 10px rgba(var(--primary-rgb), 0.1) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* ==========================================================================
+   10. PREMIUM SUMMARY INCENTIVES LIST CARDS
+   ========================================================================== */
+.summary-list-container {
+  padding: 4px;
+}
+
+.summary-item-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 16px !important;
+  margin-bottom: 12px !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.summary-item-card:hover {
+  transform: translateY(-2px) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(var(--primary-rgb), 0.25) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 10px rgba(var(--primary-rgb), 0.05) !important;
+}
+
+.summary-item-card.cat-long_auto {
+  border-left: 4px solid #00B0FF !important;
+}
+
+.summary-item-card.cat-two_annual {
+  border-left: 4px solid #FFD600 !important;
+}
+
+.summary-item-card.cat-recruitment {
+  border-left: 4px solid #00C853 !important;
+}
+
+.summary-card-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  flex-direction: column !important;
+}
+
+.summary-card-header .category-indicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 0.7rem !important;
+  border-radius: 4px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+.summary-card-header .category-indicator.cat-long_auto {
+  background: rgba(0, 176, 255, 0.15) !important;
+  color: #00B0FF !important;
+  border: 1px solid rgba(0, 176, 255, 0.3) !important;
+}
+
+.summary-card-header .category-indicator.cat-two_annual {
+  background: rgba(255, 214, 0, 0.15) !important;
+  color: #FFD600 !important;
+  border: 1px solid rgba(255, 214, 0, 0.3) !important;
+}
+
+.summary-card-header .category-indicator.cat-recruitment {
+  background: rgba(0, 200, 83, 0.15) !important;
+  color: #00C853 !important;
+  border: 1px solid rgba(0, 200, 83, 0.3) !important;
+}
+
+.summary-card-title {
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+
+.summary-progress-area {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.progress-bar-bg {
+  height: 6px !important;
+  background: var(--bg-elevated) !important;
+  border-radius: var(--radius-full) !important;
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+.progress-bar-fill {
+  height: 100% !important;
+  border-radius: var(--radius-full) !important;
+  transition: width var(--transition-slow) !important;
+}
+
+.progress-bar-fill.cat-long_auto {
+  background: linear-gradient(90deg, #00B0FF, #00E5FF) !important;
+  box-shadow: 0 0 8px rgba(0, 176, 255, 0.4) !important;
+}
+
+.progress-bar-fill.cat-two_annual {
+  background: linear-gradient(90deg, #FFD600, #FFAB00) !important;
+  box-shadow: 0 0 8px rgba(255, 214, 0, 0.4) !important;
+}
+
+.progress-bar-fill.cat-recruitment {
+  background: linear-gradient(90deg, #00C853, #64DD17) !important;
+  box-shadow: 0 0 8px rgba(0, 200, 83, 0.4) !important;
+}
+
+.progress-values {
+  display: flex !important;
+  justify-content: space-between !important;
+  font-size: 0.775rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+}
+
+.pct-text {
+  font-weight: 700 !important;
+}
+
+.pct-text.complete {
+  color: var(--accent-success) !important;
+}
+
+/* ==========================================================================
+   11. PREMIUM GLASSMORPHIC LOGIN SCREEN & OVERLAY
+   ========================================================================== */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background-color: var(--bg-deep);
+  background: radial-gradient(circle at 50% 50%, #1c1f24 0%, #101214 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#login-screen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Glowing floating background spheres */
+.login-bg-sphere {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: 0.45;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.login-bg-sphere--orange {
+  width: 320px;
+  height: 320px;
+  background: var(--primary);
+  top: -60px;
+  left: -60px;
+  animation: float-sphere 18s ease-in-out infinite alternate;
+}
+
+.login-bg-sphere--cyan {
+  width: 380px;
+  height: 380px;
+  background: var(--accent-info);
+  bottom: -80px;
+  right: -80px;
+  animation: float-sphere 22s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes float-sphere {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(80px, 60px) scale(1.15) rotate(180deg);
+  }
+  100% {
+    transform: translate(-40px, -80px) scale(0.9) rotate(360deg);
+  }
+}
+
+/* Glassmorphic Login Card */
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  z-index: 10;
+  padding: 40px !important;
+  background: rgba(31, 34, 38, 0.78) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(var(--primary-rgb), 0.08) !important;
+  border-radius: var(--radius-md) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.login-card-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand-text {
+  font-size: 2.8rem !important;
+  font-weight: 900 !important;
+  color: var(--primary) !important;
+  letter-spacing: -1px !important;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  margin: 0 0 4px 0 !important;
+  text-shadow: 0 0 30px rgba(var(--primary-rgb), 0.25) !important;
+}
+
+.login-subtitle {
+  font-size: 1.05rem !important;
+  color: var(--text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2.5px !important;
+  font-weight: 700 !important;
+  font-family: var(--font-sans) !important;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Input Fields styling */
+.login-form .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-form label {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"],
+.login-form select {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--radius-xs) !important;
+  padding: 14px 18px !important;
+  color: var(--text-primary) !important;
+  font-size: 0.925rem !important;
+  transition: all var(--transition-fast) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.login-form input[type="text"]:focus,
+.login-form input[type="password"]:focus,
+.login-form select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 12px rgba(var(--primary-rgb), 0.25) !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+
+.login-form select option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  padding: 10px;
+}
+
+/* Custom Checkbox Row styling */
+.admin-login-checkbox-row {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-left: 28px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  user-select: none;
+  font-weight: 500;
+}
+
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkmark {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  height: 18px;
+  width: 18px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-container:hover input ~ .custom-checkmark {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(var(--primary-rgb), 0.4);
+}
+
+.checkbox-container input:checked ~ .custom-checkmark {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.4);
+}
+
+.custom-checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox-container input:checked ~ .custom-checkmark:after {
+  display: block;
+}
+
+.checkbox-container .custom-checkmark:after {
+  left: 6px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-label-text {
+  transition: color var(--transition-fast);
+}
+
+.checkbox-container input:checked ~ .checkbox-label-text {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.login-footer {
+  text-align: center;
+  font-size: 0.725rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 20px;
+}
+
+/* Premium Logout Button Header Styling */
+#btn-logout {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.02) !important;
+}
+
+#btn-logout:hover {
+  background: rgba(255, 23, 68, 0.1) !important;
+  border-color: rgba(255, 23, 68, 0.3) !important;
+  color: var(--accent-danger) !important;
+  box-shadow: 0 0 12px rgba(255, 23, 68, 0.15) !important;
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   12. PREMIUM HANWHA CI LOGO STYLING
+   ========================================================================== */
+.logo-container-img {
+  width: 145px;
+  height: auto;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  position: relative;
+}
+
+.sidebar-logo-img {
+  width: 100%;
+  height: auto;
+}
+
+.login-logo-container-img {
+  width: 220px;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+  overflow: visible;
+}
+
+.login-logo-img {
+  width: 100%;
+  height: auto;
+}
+
+.ci-image-blend {
+  /* Invert shifts white bg to black, black text to white, and orange circles to cyan. 
+     Hue-rotate(180deg) brings cyan circles mathematically and perfectly back to brand orange! */
+  filter: invert(1) hue-rotate(180deg) brightness(1.06) contrast(1.1);
+  mix-blend-mode: screen; /* Blends black bg into glass transparent, letting only white text and orange circles show */
+  display: block;
+  transition: transform var(--transition-normal);
+}
+
+.logo-container-img:hover .sidebar-logo-img {
+  transform: scale(1.05) rotate(-1deg);
+}
+
+.login-logo-container-img:hover .login-logo-img {
+  transform: scale(1.23) rotate(-1deg);
+}
+
+/* ==========================================================================
+   13. HYBRID BRAND TYPOGRAPHY SYSTEM (Noto Sans KR for Headings/UI & Noto Serif KR for Body)
+   ========================================================================== */
+h1, h2, h3, h4, h5, h6,
+.btn, .tab-btn, .nav-item,
+.calendar-day-number, .weekday-label,
+.brand-name, .logo-container,
+.user-name, .user-role,
+.metric-value, .pct-text, .progress-values,
+.console-title, .console-log-line,
+input, select, button,
+.filter-chip, .event-chip,
+.hero-card-value, .hero-card-title,
+.sim-value, .metric-label, .metric-block,
+.avatar-image {
+  font-family: var(--font-sans) !important;
+}
+
+/* Premium Tab Switchers Styling */
+.view-tabs-container {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 16px; /* Spacing between tabs to prevent squishing and overlap */
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center !important;
+  gap: 8px !important; /* Perfect spacing between icon and text */
+  padding: 12px 18px !important;
+  font-size: 0.925rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 2px solid transparent !important;
+  transition: all var(--transition-fast) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  cursor: pointer !important;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+.tab-btn.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+  font-weight: 700 !important;
+}
+
+/* Color overrides for calendar chips */
+.event-chip.override-blue {
+  background: linear-gradient(135deg, #00B0FF, #00E5FF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(0, 176, 255, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.event-chip.override-gold {
+  background: linear-gradient(135deg, #FFD600, #FFAB00) !important;
+  color: #141619 !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(255, 214, 0, 0.3) !important;
+  font-weight: 700 !important;
+}
+
+.event-chip.override-green {
+  background: linear-gradient(135deg, #00C853, #64DD17) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(0, 200, 83, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.event-chip.override-purple {
+  background: linear-gradient(135deg, #D500F9, #7C4DFF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(213, 0, 249, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.event-chip.override-orange {
+  background: linear-gradient(135deg, #FF6D00, #FFAB40) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(255, 109, 0, 0.3) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Premium Color Picker in Admin parsed review */
+.color-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.color-option {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.color-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.color-dot-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  transition: all var(--transition-spring);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.color-dot-btn::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity var(--transition-fast), transform var(--transition-spring);
+  transform: scale(0);
+}
+
+.color-dot-btn.dot-blue { background: linear-gradient(135deg, #00B0FF, #00E5FF); }
+.color-dot-btn.dot-gold { background: linear-gradient(135deg, #FFD600, #FFAB00); }
+.color-dot-btn.dot-green { background: linear-gradient(135deg, #00C853, #64DD17); }
+.color-dot-btn.dot-purple { background: linear-gradient(135deg, #D500F9, #7C4DFF); }
+.color-dot-btn.dot-orange { background: linear-gradient(135deg, #FF6D00, #FFAB40); }
+
+/* Hover effects */
+.color-option:hover .color-dot-btn {
+  transform: scale(1.15);
+  box-shadow: 0 4px 10px rgba(255,255,255,0.1);
+}
+
+/* Checked state */
+.color-option input[type="radio"]:checked + .color-dot-btn {
+  border-color: #FFFFFF;
+  transform: scale(1.25);
+}
+
+.color-option input[type="radio"]:checked + .color-dot-btn::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.color-option.opt-blue input[type="radio"]:checked + .color-dot-btn { box-shadow: 0 0 12px rgba(0, 176, 255, 0.6); color: #00B0FF; }
+.color-option.opt-gold input[type="radio"]:checked + .color-dot-btn { box-shadow: 0 0 12px rgba(255, 214, 0, 0.6); color: #FFD600; }
+.color-option.opt-green input[type="radio"]:checked + .color-dot-btn { box-shadow: 0 0 12px rgba(0, 200, 83, 0.6); color: #00C853; }
+.color-option.opt-purple input[type="radio"]:checked + .color-dot-btn { box-shadow: 0 0 12px rgba(213, 0, 249, 0.6); color: #D500F9; }
+.color-option.opt-orange input[type="radio"]:checked + .color-dot-btn { box-shadow: 0 0 12px rgba(255, 109, 0, 0.6); color: #FF6D00; }
+
+.color-option-label {
+  margin-left: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.color-option input[type="radio"]:checked ~ .color-option-label {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Premium Admin Edit Controls */
+.admin-edit-select,
+.admin-edit-input,
+.admin-edit-textarea {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-xs) !important;
+  color: var(--text-primary) !important;
+  padding: 8px 12px !important;
+  font-size: 0.875rem !important;
+  font-family: var(--font-sans) !important;
+  transition: all var(--transition-fast) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.admin-edit-select:focus,
+.admin-edit-input:focus,
+.admin-edit-textarea:focus {
+  border-color: var(--primary) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.25) !important;
+}
+
+.admin-edit-select option {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+.admin-edit-textarea {
+  resize: vertical !important;
+  min-height: 60px !important;
+  line-height: 1.4 !important;
+}
+
+/* 2W Closing Deadline Circles */
+.calendar-day-number.deadline-yellow {
+  border: 2px solid #FFD600 !important;
+  border-radius: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #FFD600 !important;
+  background: rgba(255, 214, 0, 0.1) !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.calendar-day-number.deadline-green {
+  border: 2px solid #00C853 !important;
+  border-radius: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #00C853 !important;
+  background: rgba(0, 200, 83, 0.1) !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.calendar-day-number.deadline-blue {
+  border: 2px solid #00B0FF !important;
+  border-radius: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #00B0FF !important;
+  background: rgba(0, 176, 255, 0.1) !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.calendar-day-number.deadline-orange {
+  border: 2px solid #FF6D00 !important;
+  border-radius: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #FF6D00 !important;
+  background: rgba(255, 109, 0, 0.1) !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Premium Deadline Notice Card styles */
+.deadline-notice-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 12px 16px !important;
+  margin-bottom: 12px !important;
+  border: 1px solid transparent !important;
+}
+
+.deadline-notice-card.notice-yellow {
+  background: rgba(255, 214, 0, 0.05) !important;
+  border-color: rgba(255, 214, 0, 0.15) !important;
+}
+
+.deadline-notice-card.notice-green {
+  background: rgba(0, 200, 83, 0.05) !important;
+  border-color: rgba(0, 200, 83, 0.15) !important;
+}
+
+.deadline-notice-card.notice-blue {
+  background: rgba(0, 176, 255, 0.05) !important;
+  border-color: rgba(0, 176, 255, 0.15) !important;
+}
+
+.deadline-notice-card.notice-orange {
+  background: rgba(255, 109, 0, 0.05) !important;
+  border-color: rgba(255, 109, 0, 0.15) !important;
+}
+
+/* Inside-cell 2W 마감 Event Chips (Full-width block style to prevent text distortion) */
+.event-chip.deadline-chip {
+  font-weight: 800 !important;
+  font-size: 0.7rem !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  box-shadow: none !important;
+  border-radius: 4px !important;
+}
+
+.event-chip.deadline-chip.deadline-yellow {
+  background: rgba(255, 214, 0, 0.15) !important;
+  color: #FFD600 !important;
+  border: 1px solid rgba(255, 214, 0, 0.4) !important;
+}
+
+.event-chip.deadline-chip.deadline-green {
+  background: rgba(0, 200, 83, 0.15) !important;
+  color: #00C853 !important;
+  border: 1px solid rgba(0, 200, 83, 0.4) !important;
+}
+
+.event-chip.deadline-chip.deadline-blue {
+  background: rgba(0, 176, 255, 0.15) !important;
+  color: #00B0FF !important;
+  border: 1px solid rgba(0, 176, 255, 0.4) !important;
+}
+
+.event-chip.deadline-chip.deadline-orange {
+  background: rgba(255, 109, 0, 0.15) !important;
+  color: #FF6D00 !important;
+  border: 1px solid rgba(255, 109, 0, 0.4) !important;
+}
+
+/* Inside-cell 2W 마감 text badge in the day header row next to the date */
+.deadline-text-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 9px !important;            /* small and clear */
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  width: auto !important;               /* let width expand to content */
+  min-width: auto !important;
+  height: 20px !important;              /* tight visual height */
+  box-sizing: border-box !important;
+  white-space: nowrap !important;       /* strictly prevent wrapping into separate lines/paragraphs */
+  word-break: keep-all !important;      /* prevent word splitting */
+  letter-spacing: -0.1px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;            /* prevent flexbox compression */
+}
+
+.deadline-text-badge.text-yellow {
+  border: 1px solid rgba(255, 214, 0, 0.4) !important;
+  color: #FFD600 !important;
+  background: rgba(255, 214, 0, 0.08) !important;
+}
+
+.deadline-text-badge.text-green {
+  border: 1px solid rgba(0, 200, 83, 0.4) !important;
+  color: #00C853 !important;
+  background: rgba(0, 200, 83, 0.08) !important;
+}
+
+.deadline-text-badge.text-blue {
+  border: 1px solid rgba(0, 176, 255, 0.4) !important;
+  color: #00B0FF !important;
+  background: rgba(0, 176, 255, 0.08) !important;
+}
+
+.deadline-text-badge.text-orange {
+  border: 1px solid rgba(255, 109, 0, 0.4) !important;
+  color: #FF6D00 !important;
+  background: rgba(255, 109, 0, 0.08) !important;
+}
+
+/* --- AI Scan Result Slide Image Selector Styles --- */
+.image-thumbnail-selector::-webkit-scrollbar {
+  height: 6px;
+}
+.image-thumbnail-selector::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-full);
+}
+.image-thumbnail-selector::-webkit-scrollbar-thumb {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+}
+.image-thumbnail-selector::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.slide-thumb-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(243, 115, 33, 0.5) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), 0 0 8px rgba(243, 115, 33, 0.15);
+}
+
+.slide-thumb-card img {
+  transition: transform var(--transition-fast) ease;
+}
+
+.slide-thumb-card:hover img {
+  transform: scale(1.05);
+}
+
+.slide-thumb-card.active img {
+  transform: scale(1.08);
+}
+
+/* ==========================================================================
+   12. MOBILE & TABLET PORTRAIT ULTIMATE OPTIMIZATION OVERRIDE
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Day cells layout and aspect ratio */
+  .calendar-day-cell {
+    min-height: 48px !important;
+    aspect-ratio: auto !important;
+    padding: 4px !important;
+    height: auto !important;
+  }
+
+  /* Make sure days grid gap is small */
+  .calendar-days-grid {
+    gap: 4px !important;
+  }
+
+  /* Date layout inside header */
+  .calendar-day-header-row {
+    margin-bottom: 2px !important;
+  }
+
+  .calendar-day-number {
+    font-size: 0.75rem !important;
+  }
+
+  /* Hide the inside-cell "2W 마감" text badge next to date to save space */
+  .deadline-text-badge {
+    display: none !important;
+  }
+
+  /* Highlight deadline dates with a solid small colored circle around the number instead */
+  .calendar-day-number.deadline-yellow {
+    box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.4) !important;
+    border-radius: 50% !important;
+    padding: 2px !important;
+  }
+  .calendar-day-number.deadline-green {
+    box-shadow: 0 0 0 2px rgba(0, 200, 83, 0.4) !important;
+    border-radius: 50% !important;
+    padding: 2px !important;
+  }
+  .calendar-day-number.deadline-blue {
+    box-shadow: 0 0 0 2px rgba(0, 176, 255, 0.4) !important;
+    border-radius: 50% !important;
+    padding: 2px !important;
+  }
+  .calendar-day-number.deadline-orange {
+    box-shadow: 0 0 0 2px rgba(255, 109, 0, 0.4) !important;
+    border-radius: 50% !important;
+    padding: 2px !important;
+  }
+
+  /* Hide event text, make event chips into thin color strips */
+  .event-chips-container {
+    gap: 2px !important;
+    margin-top: 4px !important;
+  }
+
+  .event-chip {
+    height: 4px !important;
+    min-height: 4px !important;
+    line-height: 0 !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    color: transparent !important;
+    text-shadow: none !important;
+    border-radius: 2px !important;
+    margin: 1px 0 !important;
+    box-shadow: none !important;
+  }
+
+  .event-chip-placeholder {
+    height: 4px !important;
+    min-height: 4px !important;
+    margin: 1px 0 !important;
+  }
+
+  /* Prevent overlapping inside cell layout */
+  .calendar-day-cell.selected {
+    transform: none !important;
+  }
+  
+  /* Make horizontal filter chips scrollable and neat on mobile */
+  .category-filters {
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding: 4px 0 !important;
+    width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .filter-chip {
+    padding: 6px 12px !important;
+    font-size: 0.75rem !important;
+  }
+}
+

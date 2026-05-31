@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>한화손보 시상 및 영업 일정 관리 플랫폼</title>
+  <!-- Google Fonts: Inter & Outfit & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons (CDN) for premium visual cues -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- App Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css?v=6.2">
+</head>
+<body>
+  <!-- 0. PREMIUM GLASSMORPHIC LOGIN SCREEN OVERLAY -->
+  <div id="login-screen">
+    <!-- Floating background glowing spheres -->
+    <div class="login-bg-sphere login-bg-sphere--orange"></div>
+    <div class="login-bg-sphere login-bg-sphere--cyan"></div>
+    
+    <div class="login-card glass-panel glass-panel--glowing">
+      <div class="login-card-header">
+        <h2 class="login-brand-text">한화손보</h2>
+        <p class="login-subtitle">시상 & 영업일정 플래너</p>
+      </div>
+      
+      <div class="login-form">
+        <div class="input-group">
+          <label for="login-username"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> 코드</label>
+          <input type="text" id="login-username" value="112233" placeholder="코드를 입력하세요 (예: 112233)">
+        </div>
+        
+        <div class="input-group">
+          <label for="login-password"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> 비밀번호</label>
+          <input type="password" id="login-password" value="112233" placeholder="비밀번호를 입력하세요">
+        </div>
+        
+        <!-- Admin Login Checkbox Toggle -->
+        <div class="admin-login-checkbox-row">
+          <label class="checkbox-container">
+            <input type="checkbox" id="login-is-admin">
+            <span class="custom-checkmark"></span>
+            <span class="checkbox-label-text">관리자 모드</span>
+          </label>
+        </div>
+        
+        <!-- Custom Error Box (Replaces native browser alert to avoid '이 페이지에는' prefix) -->
+        <div id="login-error-msg" style="display: none; align-items: center; justify-content: center; gap: 8px; color: #FF4D4D; font-size: 0.85rem; font-weight: 600; background: rgba(255, 23, 68, 0.1); border: 1px solid rgba(255, 23, 68, 0.25); padding: 12px; border-radius: var(--radius-xs); font-family: var(--font-sans) !important; margin-top: 8px; box-shadow: 0 0 10px rgba(255, 23, 68, 0.1);">
+          <i data-lucide="alert-circle" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+          <span id="login-error-text">등록되지 않은 코드입니다</span>
+        </div>
+        
+        <button class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 8px; gap: 8px;">
+          <i data-lucide="log-in" style="width: 16px; height: 16px;"></i> 로그인
+        </button>
+      </div>
+      
+      <div class="login-footer" style="line-height: 1.6;">
+        <p>한화손보 시상 관리 시스템</p>
+        <p style="margin-top: 4px; opacity: 0.8;">Copyright 팔용지점 이창희 지점장</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Wrapper -->
+  <div class="app-container">
+    
+    <!-- RIGHT MAIN CONTENT WORKSPACE (Styles match styles.css) -->
+    <main class="main-content" style="padding: 32px 40px 40px 40px !important;">
+      
+      <!-- Elegant Header -->
+      <header class="app-header" style="height: auto !important; padding: 16px 0 20px 0 !important; align-items: flex-start !important; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); margin-bottom: 32px;">
+        <div class="header-title-section" style="margin-top: 4px;">
+          <h1 style="margin: 0; font-size: 1.8rem; font-weight: 800;">시상 & 영업일정 플래너</h1>
+          <p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.925rem;">한화손보 시상 캘린더</p>
+        </div>
+        
+        <!-- Right side vertical stack: Logo on top, User info & Logout at the bottom -->
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px;">
+          <!-- Enlarged Hanwha Logo (Solely placed at the very top-right corner) -->
+          <img src="images/logo-horizontal.jpg" alt="한화손보" class="ci-image-blend" style="height: 48px; border-radius: var(--radius-xs); display: block;">
+          
+          <!-- Role Switcher & User Profile Info / Logout Button -->
+          <div class="header-actions" style="margin: 0; padding: 0;">
+            <div class="profile-info" style="margin-right: 16px;">
+              <span class="branch-name" id="user-branch">팔용지점</span>
+              <span class="agent-badge">
+                <i data-lucide="user" class="icon-sm"></i>
+                <span id="user-name">김한화 FP</span>
+              </span>
+            </div>
+            
+            <!-- Logout Button (Fades back to login overlay) -->
+            <button class="btn btn-glass" id="btn-logout" style="padding: 8px 16px; font-size: 0.85rem; border-radius: var(--radius-xs); gap: 6px;">
+              <i data-lucide="log-out" style="width: 14px; height: 14px;"></i> 로그아웃
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Tab Switchers (Main content controller) -->
+      <div class="view-tabs-container" style="margin-bottom: 24px;">
+        <div class="tab-buttons">
+          <button class="tab-btn active" id="btn-view-calendar">
+            <i data-lucide="calendar" class="icon-sm"></i> 시상 일정 캘린더
+          </button>
+          <button class="tab-btn" id="btn-view-admin" style="display: none;">
+            <i data-lucide="upload-cloud" class="icon-sm"></i> 시상안 업로드 (지점장 전용)
+          </button>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           TAB PANEL A: CALENDAR VIEW (AT THE VERY TOP)
+           ========================================== -->
+      <div class="tab-content-panel active" id="panel-calendar-view">
+        <!-- 2W / Annual Award Special Hero Dashboard (Hidden by default, shown dynamically) -->
+        <div id="two-annual-hero-dashboard" style="display: none;">
+          <!-- Injected dynamically by app.js -->
+        </div>
+
+        <!-- Calendar Container (Styles match styles.css .calendar-container) -->
+        <div class="calendar-container glass-panel glass-panel--glowing">
+          <div class="calendar-header">
+            <!-- Category Filters with Premium Icons & Gradients -->
+            <div class="category-filters" id="calendar-category-filters">
+              <button class="filter-chip active" data-category="all">
+                <i data-lucide="layers" class="icon-xs"></i> 전체
+              </button>
+              <button class="filter-chip" data-category="long_auto">
+                <i data-lucide="shield" class="icon-xs"></i> 장기 보장성 / 자동차
+              </button>
+              <button class="filter-chip" data-category="two_annual">
+                <i data-lucide="award" class="icon-xs"></i> 2W / 연도대상
+              </button>
+              <button class="filter-chip" data-category="recruitment">
+                <i data-lucide="user-plus" class="icon-xs"></i> 도입
+              </button>
+            </div>
+            
+            <div class="calendar-nav-buttons" style="display: flex; align-items: center; gap: 12px;">
+              <button class="calendar-nav-btn" id="btn-prev-month"><i data-lucide="chevron-left" class="icon-sm"></i></button>
+              <span class="calendar-month-title" id="calendar-title" style="min-width: 110px; text-align: center; font-weight: 700;">2026년 5월</span>
+              <button class="calendar-nav-btn" id="btn-next-month"><i data-lucide="chevron-right" class="icon-sm"></i></button>
+            </div>
+          </div>
+
+          <!-- Weekday Labels -->
+          <div class="calendar-weekday-header">
+            <div class="weekday-label" style="color: #FF5F56;">일</div>
+            <div class="weekday-label">월</div>
+            <div class="weekday-label">화</div>
+            <div class="weekday-label">수</div>
+            <div class="weekday-label">목</div>
+            <div class="weekday-label">금</div>
+            <div class="weekday-label" style="color: #00B0FF;">토</div>
+          </div>
+          
+          <!-- Days grid -->
+          <div class="calendar-days-grid" id="calendar-days-wrapper">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+
+        <!-- Pinned Active Incentives List for Selected Date (Particularly useful on Mobile) -->
+        <div class="glass-panel" id="selected-date-incentives-panel" style="margin-top: 16px;">
+          <div class="panel-header" style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+            <h5 style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">
+              <i data-lucide="list-todo" class="color-primary icon-sm"></i> 
+              <span id="selected-date-title">5월 30일</span>의 활성 시상 및 일정
+            </h5>
+          </div>
+          <div id="selected-date-incentives-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           TAB PANEL B: ADMIN UPLOAD & ANALYZER
+           ========================================== -->
+      <div class="tab-content-panel" id="panel-admin-view">
+        <div class="admin-tools-container">
+          
+          <!-- File Drag and Drop Section -->
+          <div class="drag-drop-zone" id="file-drop-zone">
+            <div class="scanning-bar"></div>
+            <input type="file" id="file-input" style="display: none;" accept="image/*,.ppt,.pptx,.pdf">
+            <div class="upload-icon-box">
+              <i data-lucide="file-text"></i>
+            </div>
+            <h3>새 시상안 파일 올리기</h3>
+            <p>PPTX 기획서, JPG/PNG 시상 이미지, PDF 파일을 드롭하거나 클릭하여 선택하세요.</p>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">한화손보 지점 전용 시상안 가속 판독기</div>
+          </div>
+          
+          <!-- Mock files helper -->
+          <div class="mock-files-picker glass-panel" style="padding: 16px; margin-top: -8px;">
+            <h6 style="font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="help-circle" class="color-primary icon-sm"></i> 시뮬레이션용 데모 파일 클릭 실행
+            </h6>
+            <div class="mock-file-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
+              <button class="btn btn-secondary mock-file-btn" data-mock="long_auto_pct" style="padding: 8px 14px; font-size: 0.8rem;">
+                <i data-lucide="file-bar-chart" class="icon-xs"></i> 5월_4주_장기_초회보험료_시상.pptx
+              </button>
+              <button class="btn btn-secondary mock-file-btn" data-mock="two_june" style="padding: 8px 14px; font-size: 0.8rem;">
+                <i data-lucide="file-edit" class="icon-xs"></i> 6월_연속가동_2W_시상안.jpg
+              </button>
+              <button class="btn btn-secondary mock-file-btn" data-mock="recruit_gold" style="padding: 8px 14px; font-size: 0.8rem;">
+                <i data-lucide="file-plus" class="icon-xs"></i> 하반기_도입_정착지원_안내.pdf
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Console Interface -->
+          <div class="ai-console-wrapper">
+            <div class="console-header">
+              <div class="console-controls">
+                <span class="console-dot console-dot--red"></span>
+                <span class="console-dot console-dot--yellow"></span>
+                <span class="console-dot console-dot--green"></span>
+              </div>
+              <span class="console-title">Hanwha OCR & NLP Parser Core v1.4</span>
+            </div>
+            
+            <div class="console-body" id="console-logs-container">
+              <div class="console-placeholder-msg" style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
+                <i data-lucide="terminal" style="font-size: 28px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; color: var(--text-muted);"></i>
+                <p>시상안 파일을 업로드하거나 데모 버튼을 클릭하면<br>AI 스캐닝 및 데이터 자동 추출 가상화가 구동됩니다.</p>
+              </div>
+            </div>
+            
+            <!-- Loader panel inside console -->
+            <div class="console-analyzer-loader" id="analyzer-loader" style="display: none; flex-direction: column; align-items: center; padding: 20px; background: rgba(0,0,0,0.8); border-top: 1px solid rgba(255,255,255,0.1);">
+              <span id="analyzer-loader-text" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--primary); margin-bottom: 8px;">추출 중...</span>
+              <div class="loader-progress-bar" style="width: 80%; height: 4px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden;">
+                <div class="loader-progress-fill" id="loader-progress-fill-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parsed Result review board -->
+          <div class="parsed-results-wrapper glass-panel glass-panel--glowing" id="parsed-results-panel" style="display: none; border-color: rgba(var(--accent-success-rgb), 0.2);">
+            <div class="panel-header" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+              <h4 style="display: flex; align-items: center; gap: 8px; color: var(--accent-success);">
+                <i data-lucide="check-circle" class="icon-sm"></i> 추출된 시상 규정 정보 검토
+              </h4>
+            </div>
+            
+            <div class="parsed-content-card" id="parsed-result-card-data" style="margin-bottom: 20px;">
+              <!-- Dynamic review values -->
+            </div>
+            
+            <div class="parsed-actions-bar" style="display: flex; justify-content: flex-end; gap: 12px;">
+              <button class="btn btn-secondary" id="btn-discard-parsed" style="padding: 10px 20px;">재시도</button>
+              <button class="btn btn-primary" id="btn-commit-parsed" style="padding: 10px 24px;">캘린더 등록 및 FP 공지</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ==========================================
+           3. DASHBOARD BOTTOM GRID (BELOW CALENDAR)
+           ========================================== -->
+      <div class="dashboard-bottom-grid">
+        
+
+        <!-- Column 2: Incentives Summary List -->
+        <div class="incentives-summary glass-panel glass-panel--interactive">
+          <div class="panel-header" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <i data-lucide="award" class="color-primary"></i>
+              <h3 style="font-size: 1.1rem; font-weight: 700;">주요 시상 종합 진척도</h3>
+            </div>
+          </div>
+          <div class="summary-list-container" id="summary-list-wrapper" style="display: flex; flex-direction: column; gap: 12px; max-height: 290px; overflow-y: auto;">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Column 3: Welcome Card & Quick Stats Summary -->
+        <div class="welcome-card glass-panel glass-panel--interactive" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="welcome-header">
+            <h3 style="font-size: 1.1rem; font-weight: 700;">오늘의 지점 실적 요약</h3>
+            <p class="date-today" id="current-full-date" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">2026년 5월 30일 (토)</p>
+          </div>
+          
+          <div class="quick-overview-stats" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px; margin-bottom: 16px;">
+            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.825rem; color: var(--text-secondary);">장기보장 가동건수</span>
+              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-contracts" class="color-primary">3</span>건</span>
+            </div>
+            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.825rem; color: var(--text-secondary);">장기 초회보험료</span>
+              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-premiums" class="color-primary">180,000</span>원</span>
+            </div>
+            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.825rem; color: var(--text-secondary);">당월 도입 가동</span>
+              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-recruits" class="color-primary">1</span>명</span>
+            </div>
+          </div>
+          
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border); padding-top: 8px;">
+            실시간 실적 자동 집계 시스템
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+    
+    <!-- Dynamic Bottom-Sheet Details Panel (Responsive sliding sheet) -->
+    <div class="bottom-sheet-overlay" id="detail-panel-overlay">
+      <div class="bottom-sheet-container" id="detail-panel-container">
+        
+        <!-- Sheet Handle for drag feel -->
+        <div class="bottom-sheet-handle"></div>
+        
+        <!-- Header -->
+        <div class="bottom-sheet-header">
+          <div class="category-badge-wrapper" style="display: flex; gap: 8px; align-items: center;">
+            <span class="event-chip" id="detail-category-badge">장기 보장성 / 자동차</span>
+            <span class="date-duration" id="detail-date-duration" style="font-size: 0.8rem; color: var(--text-muted);">5/25 ~ 5/29</span>
+          </div>
+          <button class="btn-close-sheet" id="btn-close-detail-panel">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        
+        <!-- Content Scroll Area -->
+        <div class="sheet-body-scroll" style="max-height: 480px; overflow-y: auto;">
+          
+          <!-- PPT/PDF slide capture block -->
+          <div id="slide-capture-container" style="display: none;"></div>
+          
+          <h2 class="bottom-sheet-title" id="detail-incentive-title" style="font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; display: none;">5월 4주차 장기보장성 신계약 건수 시상</h2>
+          
+          <p class="detail-description" id="detail-incentive-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px; display: none;">
+            장기 보장성 신계약 5건 이상 가동 시 특별 시상 혜택을 드립니다.
+          </p>
+
+          <!-- Divider -->
+          <div class="sheet-divider" style="height: 1px; background: var(--border); margin: 16px 0;"></div>
+          
+          <!-- Category Dynamic Layout Content Wrapper -->
+          <div id="dynamic-category-layout">
+            <!-- Dynamic UI content will be injected based on category rules -->
+          </div>
+
+          <!-- Weekly strategy and issue associated with this incentive -->
+          <div class="associated-strategy-section" style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 20px;">
+            <h5 style="font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-primary);">
+              <i data-lucide="compass" class="color-primary"></i> 이번 주 영업 이슈 및 지점 전략
+            </h5>
+            <div class="strategy-detail-box" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border); padding: 16px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 12px;">
+              <div class="strategy-sub-item">
+                <h6 style="color: var(--primary); font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">금주 핵심 영업 이슈</h6>
+                <p id="detail-weekly-issue" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">운전자보험 한도 축소 전 막판 스퍼트 절판 마케팅 집중 필요</p>
+              </div>
+              <div class="strategy-sub-item">
+                <h6 style="color: var(--primary); font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">지점 제안 실행 방향</h6>
+                <p id="detail-strategy-direction" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">기존 고객 대상 운전자보험 업셀링 플랜 제안서 전달 및 가족 일괄 가입 전략 활용</p>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Load Scripts -->
+  <script src="data.js?v=6.2"></script>
+  <script src="analyzer.js?v=6.2"></script>
+  <script src="app.js?v=6.2"></script>
+  
+  <!-- Sidebar Navigation Sync Script (Resolves visual routing triggers) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Connect Lucide
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+
+      // Sidebar Tab elements
+      const sideCal = document.getElementById('sidebar-tab-calendar');
+      const sideAdm = document.getElementById('sidebar-tab-admin');
+      
+      // Main Tab buttons
+      const btnCal = document.getElementById('btn-view-calendar');
+      const btnAdm = document.getElementById('btn-view-admin');
+      
+      // Sync Sidebar clicks -> Main Tab triggers
+      if (sideCal && btnCal) {
+        sideCal.addEventListener('click', (e) => {
+          e.preventDefault();
+          btnCal.click();
+          document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => el.classList.remove('active'));
+          sideCal.classList.add('active');
+        });
+      }
+      
+      if (sideAdm && btnAdm) {
+        sideAdm.addEventListener('click', (e) => {
+          e.preventDefault();
+          btnAdm.click();
+          document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => el.classList.remove('active'));
+          sideAdm.classList.add('active');
+        });
+      }
+      
+      // Sync Main Tab clicks -> Sidebar highlight sync
+      if (btnCal && sideCal) {
+        btnCal.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => el.classList.remove('active'));
+          sideCal.classList.add('active');
+        });
+      }
+      
+      if (btnAdm && sideAdm) {
+        btnAdm.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => el.classList.remove('active'));
+          sideAdm.classList.add('active');
+        });
+      }
+
+      // Username and branch state display are synced and managed centrally by app.js on login/logout
+    });
+  </script>
+</body>
+</html>
