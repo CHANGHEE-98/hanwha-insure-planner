@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       
       const enteredCode = usernameInput ? usernameInput.value.trim() : "";
-      const enteredPassword = passwordInput ? passwordInput.value : "";
+      const enteredPassword = passwordInput ? passwordInput.value.trim() : ""; // 모바일 자동완성 등 공백오류 예방을 위한 trim 탑재
       
       const user = registeredUsers[enteredCode];
       
@@ -228,13 +228,20 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Hide login overlay with beautiful animation transition
       loginScreen.classList.add('fade-out');
+      // 모바일 사파리/웨일 등의 터치 이벤트 프리즈 예방을 위해 물리적으로 display: none 강제 처리
+      setTimeout(() => {
+        loginScreen.style.display = 'none';
+      }, 500);
     });
   }
 
   if (btnLogout && loginScreen) {
     btnLogout.addEventListener('click', () => {
       // Show login overlay back
-      loginScreen.classList.remove('fade-out');
+      loginScreen.style.display = 'flex';
+      setTimeout(() => {
+        loginScreen.classList.remove('fade-out');
+      }, 10);
       
       // Hide error box if visible
       const errorMsgBox = document.getElementById('login-error-msg');
