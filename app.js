@@ -71,6 +71,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btnCalendar.classList.remove('active');
       panelAdmin.classList.add('active');
       panelCalendar.classList.remove('active');
+      
+      // 관리자 탭 활성화 시 등록된 시상안 목록 편집 관리 보드 즉시 렌더링
+      if (typeof window.renderActiveIncentivesManager === 'function') {
+        window.renderActiveIncentivesManager();
+      }
     });
   }
 
@@ -291,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
 
-    // 1. Build a flat array of exactly 42 cells representing the calendar grid days
+    // 1. Flat array of exactly 42 cells representing the calendar grid days
     const daysArray = [];
 
     // Prev Month Trailing Days (Padding)
@@ -300,24 +305,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
       const dayStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      daysArray.push({
-        dateStr: dayStr,
-        label: dayNum,
-        isActiveMonth: false,
-        isToday: false
-      });
+      daysArray.push({ dateStr: dayStr, label: dayNum, isActiveMonth: false, isToday: false });
     }
 
     // Active Month Days
     for (let d = 1; d <= daysInMonth; d++) {
       const dayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const isToday = currentYear === 2026 && currentMonth === 4 && d === 30; // Today in simulated timeline
-      daysArray.push({
-        dateStr: dayStr,
-        label: d,
-        isActiveMonth: true,
-        isToday: isToday
-      });
+      const isToday = currentYear === 2026 && currentMonth === 4 && d === 30; // Simulated timeline today
+      daysArray.push({ dateStr: dayStr, label: d, isActiveMonth: true, isToday: isToday });
     }
 
     // Next Month Leading Days
@@ -327,31 +322,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
       const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
       const dayStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      daysArray.push({
-        dateStr: dayStr,
-        label: d,
-        isActiveMonth: false,
-        isToday: false
-      });
+      daysArray.push({ dateStr: dayStr, label: d, isActiveMonth: false, isToday: false });
     }
 
     // 2. Filter active short-term incentives (duration <= 60 days) to keep grid clean
     const gridIncentives = window.INCENTIVE_DATABASE.incentives.filter(inc => {
-      // Exclude very long-term / annual persistent incentives (e.g. 365-day championship)
       const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (diffDays > 60) return false;
-      
-      // Filter by category
-      if (activeCategory !== 'all' && inc.category !== activeCategory) {
-        return false;
-      }
+      if (activeCategory !== 'all' && inc.category !== activeCategory) return false;
       return true;
     });
 
-    // Create a consistent mapping of slot indices for grid incentives to keep their vertical ordering aligned
     const totalSlots = gridIncentives.length;
-    // 3. Render 42 day cells in the grid
+    const fragment = document.createDocumentFragment();
+
+    // 3. Render 42 day cells in the grid using DocumentFragment for maximum performance
     daysArray.forEach((dayObj, cellIndex) => {
       const isSelected = selectedDate === dayObj.dateStr;
       const dayBox = document.createElement('div');
@@ -359,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dayBox.setAttribute('data-date', dayObj.dateStr);
       dayBox.style.zIndex = 42 - cellIndex;
 
-      // Day Header Row (Aligns text badge left, date number right)
+      // Day Header Row
       const headerRow = document.createElement('div');
       headerRow.className = 'calendar-day-header-row';
       headerRow.style.display = 'flex';
@@ -388,14 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (deadlineColor === 'orange') weekNum = 4;
         numSpan.title = `2W 가동 ${weekNum}주차 마감일`;
 
-        // Render "2W 마감" text badge on the left
         const badgeSpan = document.createElement('span');
         badgeSpan.className = `deadline-text-badge text-${deadlineColor}`;
         badgeSpan.textContent = '2W 마감';
         badgeSpan.title = `2W 가동 ${weekNum}주차 마감일`;
         badgeSpan.style.pointerEvents = 'auto';
         
-        // Clicking badge selects date as well
         badgeSpan.addEventListener('click', (e) => {
           e.stopPropagation();
           selectedDate = dayObj.dateStr;
@@ -405,7 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         headerRow.appendChild(badgeSpan);
       } else {
-        // Transparent spacer to maintain row alignment
         const spacer = document.createElement('span');
         spacer.style.width = '1px';
         spacer.style.height = '1px';
@@ -420,17 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
       chipsContainer.className = 'event-chips-container';
       dayBox.appendChild(chipsContainer);
 
-      // Filter incentives active on this specific day to support quick cell clicks
-      const activeIncentivesOnDay = gridIncentives.filter(inc => {
-        return dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate;
-      });
-
-      // 4. Render slots (Vertical rows of events in each day cell)
+      // Determine active slot height dynamically to avoid vertical overlaps
       let maxActiveSlot = -1;
       for (let s = 0; s < totalSlots; s++) {
         const inc = gridIncentives[s];
-        const isActiveToday = dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate;
-        if (isActiveToday) {
+        if (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate) {
           maxActiveSlot = s;
         }
       }
@@ -440,26 +417,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const isActiveToday = dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate;
 
         if (isActiveToday) {
-          // Check if event was active on the previous day (must not wrap row boundary at Sunday, column 0)
           const isPrevActive = cellIndex > 0 && 
                                (cellIndex % 7 !== 0) && 
                                (daysArray[cellIndex - 1].dateStr >= inc.startDate && daysArray[cellIndex - 1].dateStr <= inc.endDate);
 
-          // Check if event will be active on the next day (must not wrap row boundary at Saturday, column 6)
           const isNextActive = cellIndex < 41 && 
                                (cellIndex % 7 !== 6) && 
                                (daysArray[cellIndex + 1].dateStr >= inc.startDate && daysArray[cellIndex + 1].dateStr <= inc.endDate);
 
           const chip = document.createElement('div');
-          let colorClass = `cat-${inc.category}`;
-          if (inc.colorOverride) {
-            colorClass = `override-${inc.colorOverride}`;
-          }
+          let colorClass = inc.colorOverride ? `override-${inc.colorOverride}` : `cat-${inc.category}`;
           chip.className = `event-chip ${colorClass}`;
           chip.setAttribute('data-inc-id', inc.id);
           chip.title = inc.title;
 
-          // Compute spanCount and continuesNextWeek for spanning chips starting in this row
           if (!isPrevActive) {
             let spanCount = 1;
             let nextIndex = cellIndex + 1;
@@ -469,18 +440,14 @@ document.addEventListener('DOMContentLoaded', () => {
             let continuesNextWeek = false;
             while (nextIndex < 42) {
               if (nextIndex % 7 === 0) {
-                // Row boundary reached (Sunday)
-                // Check if the event continues to Sunday of next week
                 const nextDayStr = daysArray[nextIndex].dateStr;
-                const isActiveOnSunday = nextDayStr >= inc.startDate && nextDayStr <= inc.endDate;
-                if (isActiveOnSunday) {
+                if (nextDayStr >= inc.startDate && nextDayStr <= inc.endDate) {
                   continuesNextWeek = true;
                 }
                 break;
               }
               const nextDayStr = daysArray[nextIndex].dateStr;
-              const isNextActiveOnDay = nextDayStr >= inc.startDate && nextDayStr <= inc.endDate;
-              if (isNextActiveOnDay) {
+              if (nextDayStr >= inc.startDate && nextDayStr <= inc.endDate) {
                 spanCount++;
                 nextIndex++;
               } else {
@@ -488,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
             
-            // Set dynamic inline styles with !important priority to override stylesheet width rules
             let leftBridgeVar = continuesPrevWeek ? 'var(--right-bridge, 10px)' : '0px';
             let rightBridgeVar = continuesNextWeek ? 'var(--right-bridge, 10px)' : '0px';
             
@@ -504,32 +470,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          // Determine ribbon-spanning visual classes based on continuity
           const isMobile = window.innerWidth <= 768;
           const displayTitle = isMobile ? getCompactTitle(inc.title) : (inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title);
 
           if (!isPrevActive && isNextActive) {
-            // Segment Start: rounded left, flat right, shows title text centered across span
             chip.classList.add('span-start');
             chip.textContent = displayTitle;
           } else if (isPrevActive && isNextActive) {
-            // Segment Middle: fully flat, transparent, text hidden (unless mobile)
             chip.classList.add('span-middle');
-            if (isMobile) {
-              chip.textContent = displayTitle;
-            } else {
-              chip.innerHTML = '&nbsp;';
-            }
+            chip.textContent = isMobile ? displayTitle : '';
+            if (!isMobile) chip.innerHTML = '&nbsp;';
           } else if (isPrevActive && !isNextActive) {
-            // Segment End: flat left, rounded right, transparent, text hidden (unless mobile)
             chip.classList.add('span-end');
-            if (isMobile) {
-              chip.textContent = displayTitle;
-            } else {
-              chip.innerHTML = '&nbsp;';
-            }
+            chip.textContent = isMobile ? displayTitle : '';
+            if (!isMobile) chip.innerHTML = '&nbsp;';
           } else {
-            // Standalone (1-day): fully rounded, shows title text centered
             chip.textContent = displayTitle;
           }
 
@@ -541,14 +496,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
           chipsContainer.appendChild(chip);
         } else {
-          // Render a transparent placeholder to preserve vertical aligning slot tracks
           const placeholder = document.createElement('div');
           placeholder.className = 'event-chip-placeholder';
           chipsContainer.appendChild(placeholder);
         }
       }
 
-      // Clicking anywhere inside the cell selects the date (except event chips)
+      // Cell selection event
       dayBox.addEventListener('click', (e) => {
         if (e.target.closest('.event-chip')) return;
         selectedDate = dayObj.dateStr;
@@ -556,8 +510,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSelectedDateEvents(dayObj.dateStr);
       });
 
-      daysWrapper.appendChild(dayBox);
+      fragment.appendChild(dayBox);
     });
+
+    // Bulk append to wrappers to trigger single DOM reflow
+    daysWrapper.appendChild(fragment);
   }
 
   // Render Dynamic Top Hero Dashboard for 2W / Annual Award category
@@ -1055,27 +1012,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('detail-incentive-title').textContent = inc.title;
     document.getElementById('detail-incentive-desc').textContent = inc.description;
 
-    // Prepend the gorgeous slide capture at the top of the popup
-    const slideCaptureContainer = document.getElementById('slide-capture-container');
-    if (slideCaptureContainer) {
-      const imgSrc = inc.slideImage || 'images/media__1780194708878.png';
-      slideCaptureContainer.innerHTML = `
-        <div class="slide-capture-preview-card" style="width: 100%; border: 3px solid #F37321; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 20px; overflow: hidden; box-sizing: border-box;">
-          <img src="${imgSrc}" style="width: 100%; display: block; border-radius: 5px;">
-        </div>
-      `;
-      slideCaptureContainer.style.display = 'block';
-    }
-
     const categoryBadge = document.getElementById('detail-category-badge');
     categoryBadge.className = `cat-badge cat-${inc.category}`;
     categoryBadge.textContent = inc.title;
 
     document.getElementById('detail-date-duration').textContent = `${formatDateShort(inc.startDate)} ~ ${formatDateShort(inc.endDate)}`;
 
-    // Fill strategy advisory details
-    document.getElementById('detail-weekly-issue').textContent = inc.weeklyIssue || "이슈 세부전략이 설정되지 않은 시상안입니다.";
-    document.getElementById('detail-strategy-direction').textContent = inc.direction || "지점 영업 관리자 가이드가 제공되지 않았습니다.";
+
 
     // Render interactive simulation slider layout
     renderDynamicCategoryLayout(inc);
@@ -1108,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Determine layout type based on milestones presence
     const hasMilestones = inc.milestones && inc.milestones.length > 0;
+    const profile = window.INCENTIVE_DATABASE.agentProfile;
 
     if (!hasMilestones) {
       // --- Case A: Simple Track Simulator (Contracts & Premiums) ---
@@ -1132,6 +1076,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="simulator-tag"><i data-lucide="sliders"></i> 시상 달성 시뮬레이터</span>
             <div id="bottom-sheet-achieved-badge"></div>
           </div>
+
+          <!-- 설계사 개별 실적 연동 인포 바 -->
+          <div style="background: rgba(243, 115, 33, 0.03); border: 1px solid rgba(243, 115, 33, 0.1); padding: 8px 14px; border-radius: 8px; font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; font-family: var(--font-sans) !important;">
+            <span><i data-lucide="user" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; color: var(--primary); margin-right: 4px;"></i> 현재 연동 FP: <b style="color: var(--text-primary);">${profile.name}</b></span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500;">Excel 첨부 시 실시간 매핑</span>
+          </div>
           
           <div class="simulation-metric-display">
             <div class="metric-block">
@@ -1145,13 +1095,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
 
-          <div class="slider-container">
-            <div class="slider-track-bg"></div>
-            <input type="range" class="range-slider" id="bottom-sheet-slider" min="${min}" max="${max}" step="${step}" value="${inc.currentValue}">
-            <div class="slider-track-fill" id="bottom-sheet-slider-fill"></div>
+          <!-- Premium Interactive Number Input Panel (Replaces Slider) -->
+          <div class="simulator-input-container" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin: 24px 0 12px 0; font-family: var(--font-sans) !important;">
+            <button class="btn-sim-adjust" id="btn-sim-decrease" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="감소">-</button>
+            <div class="sim-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="number" class="simulator-num-input" id="bottom-sheet-input" min="0" step="${step}" value="${inc.currentValue}" style="width: 190px; height: 46px; text-align: center; font-size: 1.35rem; font-weight: 900; color: var(--primary); background: #FFFFFF; border: 2.5px solid var(--primary); border-radius: 14px; padding: 0 35px 0 15px; box-shadow: 0 4px 12px rgba(243, 115, 33, 0.06); transition: all 0.2s ease;">
+              <span class="sim-input-unit" style="position: absolute; right: 15px; font-size: 0.95rem; font-weight: 800; color: var(--text-secondary); pointer-events: none;">${inc.metricUnit}</span>
+            </div>
+            <button class="btn-sim-adjust" id="btn-sim-increase" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="증가">+</button>
+          </div>
+
+          <!-- Visual Progress Gauge Bar -->
+          <div class="sim-progress-bar-container" style="width: 100%; height: 8px; background: rgba(0, 0, 0, 0.05); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 8px; position: relative;">
+            <div class="sim-progress-bar-fill" id="bottom-sheet-progress-bar-fill" style="height: 100%; background: linear-gradient(to right, var(--primary), var(--secondary)); border-radius: var(--radius-full); width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
           </div>
           
-          <div class="slider-progress-percentage" id="bottom-sheet-slider-percentage">
+          <div class="slider-progress-percentage" id="bottom-sheet-slider-percentage" style="margin-bottom: 20px;">
             시뮬레이션 달성률: 0%
           </div>
           
@@ -1166,8 +1125,10 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       // Cache Interactive Controls
-      const slider = document.getElementById('bottom-sheet-slider');
-      const sliderFill = document.getElementById('bottom-sheet-slider-fill');
+      const simInput = document.getElementById('bottom-sheet-input');
+      const progressBarFill = document.getElementById('bottom-sheet-progress-bar-fill');
+      const btnDecrease = document.getElementById('btn-sim-decrease');
+      const btnIncrease = document.getElementById('btn-sim-increase');
       const currentValDisplay = document.getElementById('sim-current-val-display');
       const percentageDisplay = document.getElementById('bottom-sheet-slider-percentage');
       const badgeContainer = document.getElementById('bottom-sheet-achieved-badge');
@@ -1188,13 +1149,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         currentValDisplay.textContent = displayVal;
         
+        // Sync input field value
+        simInput.value = simVal;
+
         // Calculate progress percentage
         const percentage = Math.min(100, Math.round((simVal / inc.targetValue) * 100));
         percentageDisplay.innerHTML = `시뮬레이션 달성률: <b class="color-primary">${percentage}%</b>`;
         
         // Progress track fill calculation
-        const fillPct = ((simVal - min) / (max - min)) * 100;
-        sliderFill.style.width = `${fillPct}%`;
+        progressBarFill.style.width = `${percentage}%`;
         
         // Dynamic Reward Payout Calculation
         let currentReward = inc.reward;
@@ -1236,8 +1199,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide) window.lucide.createIcons();
       };
 
-      slider.addEventListener('input', (e) => {
-        updateSimulation(e.target.value);
+      // Direct Typed Input Handler
+      simInput.addEventListener('input', (e) => {
+        let val = Number(e.target.value);
+        if (val < 0) val = 0;
+        updateSimulation(val);
+      });
+
+      // Step Buttons Handler
+      const stepVal = inc.metricType === 'premiums' ? 50000 : (inc.metricType === 'two_tier' && inc.metricUnit === '만 포인트' ? 1000 : 1);
+      btnDecrease.addEventListener('click', () => {
+        let val = Number(simInput.value) - stepVal;
+        if (val < 0) val = 0;
+        updateSimulation(val);
+      });
+      btnIncrease.addEventListener('click', () => {
+        let val = Number(simInput.value) + stepVal;
+        updateSimulation(val);
       });
 
       // Trigger initial layout draw
@@ -1288,6 +1266,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <div id="milestone-current-tier-badge"></div>
           </div>
           
+          <!-- 설계사 개별 실적 연동 인포 바 -->
+          <div style="background: rgba(243, 115, 33, 0.03); border: 1px solid rgba(243, 115, 33, 0.1); padding: 8px 14px; border-radius: 8px; font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; font-family: var(--font-sans) !important;">
+            <span><i data-lucide="user" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; color: var(--primary); margin-right: 4px;"></i> 현재 연동 FP: <b style="color: var(--text-primary);">${profile.name}</b></span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500;">Excel 첨부 시 실시간 매핑</span>
+          </div>
+
           <!-- Horizontal Track Progress Bar -->
           <div class="milestone-track-container">
             <div class="milestone-track-bg">
@@ -1310,13 +1294,17 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
 
-          <div class="slider-container">
-            <div class="slider-track-bg"></div>
-            <input type="range" class="range-slider" id="bottom-sheet-milestone-slider" min="${min}" max="${max}" step="${step}" value="${inc.currentValue}">
-            <div class="slider-track-fill" id="bottom-sheet-milestone-slider-fill"></div>
+          <!-- Premium Interactive Number Input Panel (Replaces Slider) -->
+          <div class="simulator-input-container" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin: 24px 0 12px 0; font-family: var(--font-sans) !important;">
+            <button class="btn-sim-adjust" id="btn-sim-milestone-decrease" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="감소">-</button>
+            <div class="sim-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="number" class="simulator-num-input" id="bottom-sheet-milestone-input" min="0" step="${step}" value="${inc.currentValue}" style="width: 190px; height: 46px; text-align: center; font-size: 1.35rem; font-weight: 900; color: var(--primary); background: #FFFFFF; border: 2.5px solid var(--primary); border-radius: 14px; padding: 0 35px 0 15px; box-shadow: 0 4px 12px rgba(243, 115, 33, 0.06); transition: all 0.2s ease;">
+              <span class="sim-input-unit" style="position: absolute; right: 15px; font-size: 0.95rem; font-weight: 800; color: var(--text-secondary); pointer-events: none;">${inc.metricUnit === '만 포인트' ? '만pt' : inc.metricUnit}</span>
+            </div>
+            <button class="btn-sim-adjust" id="btn-sim-milestone-increase" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="증가">+</button>
           </div>
           
-          <div class="milestone-gap-announcement" id="milestone-gap-text">
+          <div class="milestone-gap-announcement" id="milestone-gap-text" style="margin-bottom: 20px;">
             다음 단계까지 0 남았습니다.
           </div>
 
@@ -1331,8 +1319,9 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       // Cache Interactive Controls
-      const slider = document.getElementById('bottom-sheet-milestone-slider');
-      const sliderFill = document.getElementById('bottom-sheet-milestone-slider-fill');
+      const simInput = document.getElementById('bottom-sheet-milestone-input');
+      const btnDecrease = document.getElementById('btn-sim-milestone-decrease');
+      const btnIncrease = document.getElementById('btn-sim-milestone-increase');
       const currentValDisplay = document.getElementById('milestone-sim-current-val-display');
       const nextValDisplay = document.getElementById('milestone-sim-next-val-display');
       const progressFill = document.getElementById('milestone-progress-fill');
@@ -1354,12 +1343,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         currentValDisplay.textContent = displayVal;
         
+        // Sync input field value
+        simInput.value = simVal;
+
         // Progress track calculation
         const trackPct = Math.min(100, (simVal / max) * 100);
         progressFill.style.width = `${trackPct}%`;
-        
-        const fillPct = ((simVal - min) / (max - min)) * 100;
-        sliderFill.style.width = `${fillPct}%`;
         
         // Toggle Node Active States
         const nodes = container.querySelectorAll('.milestone-node');
@@ -1424,8 +1413,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide) window.lucide.createIcons();
       };
 
-      slider.addEventListener('input', (e) => {
-        updateMilestones(e.target.value);
+      // Direct Typed Input Handler
+      simInput.addEventListener('input', (e) => {
+        let val = Number(e.target.value);
+        if (val < 0) val = 0;
+        updateMilestones(val);
+      });
+
+      // Step Buttons Handler
+      const stepVal = inc.metricType === 'premiums' ? 50000 : (inc.metricType === 'two_tier' && inc.metricUnit === '만 포인트' ? 1000 : 1);
+      btnDecrease.addEventListener('click', () => {
+        let val = Number(simInput.value) - stepVal;
+        if (val < 0) val = 0;
+        updateMilestones(val);
+      });
+      btnIncrease.addEventListener('click', () => {
+        let val = Number(simInput.value) + stepVal;
+        updateMilestones(val);
       });
 
       // Trigger initial layout draw
@@ -1449,6 +1453,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCalendar();
     renderSummaryList();
     renderSelectedDateEvents(selectedDate);
+    
+    // 지점장용 시상안 편집 삭제 관리보드가 로딩되어 있다면 함께 갱신
+    if (typeof window.renderActiveIncentivesManager === 'function') {
+      window.renderActiveIncentivesManager();
+    }
   };
 
   window.setCalendarDate = (year, month) => {

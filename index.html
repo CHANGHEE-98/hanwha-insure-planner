@@ -10,8 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons (CDN) for premium visual cues -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- JSZip for dynamic client-side PPTX/document parsing and image extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- SheetJS for dynamic Excel parsing and performance statistics synchronization -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- App Custom Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=7.0">
+  <link rel="stylesheet" href="styles.css?v=9.0">
 </head>
 <body>
   <!-- 0. PREMIUM GLASSMORPHIC LOGIN SCREEN OVERLAY -->
@@ -42,7 +46,7 @@
           <label class="checkbox-container">
             <input type="checkbox" id="login-is-admin">
             <span class="custom-checkmark"></span>
-            <span class="checkbox-label-text">관리자 모드</span>
+            <span class="checkbox-label-text">관리자 로그인</span>
           </label>
         </div>
         
@@ -185,9 +189,9 @@
         <div class="admin-tools-container">
           
           <!-- File Drag and Drop Section -->
-          <div class="drag-drop-zone" id="file-drop-zone">
+          <div class="drag-drop-zone" id="file-drop-zone" style="position: relative;">
             <div class="scanning-bar"></div>
-            <input type="file" id="file-input" style="display: none;" accept="image/*,.ppt,.pptx,.pdf">
+            <input type="file" id="file-input" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10;" accept=".pptx, .ppt, .pdf, image/*" multiple>
             <div class="upload-icon-box">
               <i data-lucide="file-text"></i>
             </div>
@@ -195,49 +199,43 @@
             <p>PPTX 기획서, JPG/PNG 시상 이미지, PDF 파일을 드롭하거나 클릭하여 선택하세요.</p>
             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">한화손보 지점 전용 시상안 가속 판독기</div>
           </div>
-          
-          <!-- Mock files helper -->
-          <div class="mock-files-picker glass-panel" style="padding: 16px; margin-top: -8px;">
-            <h6 style="font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="help-circle" class="color-primary icon-sm"></i> 시뮬레이션용 데모 파일 클릭 실행
-            </h6>
-            <div class="mock-file-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
-              <button class="btn btn-secondary mock-file-btn" data-mock="long_auto_pct" style="padding: 8px 14px; font-size: 0.8rem;">
-                <i data-lucide="file-bar-chart" class="icon-xs"></i> 5월_4주_장기_초회보험료_시상.pptx
-              </button>
-              <button class="btn btn-secondary mock-file-btn" data-mock="two_june" style="padding: 8px 14px; font-size: 0.8rem;">
-                <i data-lucide="file-edit" class="icon-xs"></i> 6월_연속가동_2W_시상안.jpg
-              </button>
-              <button class="btn btn-secondary mock-file-btn" data-mock="recruit_gold" style="padding: 8px 14px; font-size: 0.8rem;">
-                <i data-lucide="file-plus" class="icon-xs"></i> 하반기_도입_정착지원_안내.pdf
-              </button>
+
+          <!-- 지점 실적 현황 Excel 연동 업로드 Section -->
+          <div class="drag-drop-zone xlsx-drop-zone" id="xlsx-drop-zone" style="position: relative; margin-top: 16px; border-color: rgba(0, 176, 255, 0.25); background: rgba(0, 176, 255, 0.02);">
+            <div class="scanning-bar" style="background: linear-gradient(to bottom, transparent, rgba(0, 176, 255, 0.2), transparent);"></div>
+            <input type="file" id="xlsx-input" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10;" accept=".xlsx, .xls">
+            <div class="upload-icon-box" style="background: rgba(0, 176, 255, 0.08); color: #00B0FF;">
+              <i data-lucide="file-spreadsheet"></i>
+            </div>
+            <h3 style="color: #00B0FF;">지점 실적 현황 Excel (.xlsx) 연동</h3>
+            <p>지점 FP 실적 현황 엑셀 파일을 드롭하거나 선택하여 실시간 대시보드 수치를 갱신하세요.</p>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">가동건수, 초회보험료, 도입 인원 자동 동기화</div>
+          </div>
+
+          <!-- AI OCR Scanner Console / Loader (Premium visual wow effect) -->
+          <div id="analyzer-loader" style="display: none; background: #FFFFFF; border: 1px solid var(--border); padding: 20px; border-radius: var(--radius-sm); margin-top: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); font-family: var(--font-sans);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; font-weight: 700; color: var(--primary);" id="analyzer-loader-text">AI 시상안 판독 시퀀스 대기중...</div>
+            <div style="background: rgba(0,0,0,0.05); height: 8px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border);">
+              <div id="loader-progress-fill-bar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.1s ease;"></div>
             </div>
           </div>
 
-          <!-- AI Console Interface -->
-          <div class="ai-console-wrapper">
-            <div class="console-header">
-              <div class="console-controls">
-                <span class="console-dot console-dot--red"></span>
-                <span class="console-dot console-dot--yellow"></span>
-                <span class="console-dot console-dot--green"></span>
-              </div>
-              <span class="console-title">Hanwha OCR & NLP Parser Core v1.4</span>
+          <div id="console-logs-container" style="display: none; margin-top: 16px; background: #1F2226; border: 1px solid var(--border); font-family: 'Fira Code', monospace; font-size: 0.775rem; color: #00FF66; padding: 16px; min-height: 120px; max-height: 180px; overflow-y: auto; border-radius: var(--radius-sm); box-shadow: inset 0 0 15px rgba(0,0,0,0.8);">
+            <div class="console-placeholder-msg" style="color: #888;">[시스템] 대기 중... 파일을 드롭하면 실시간 OCR 인공지능 분석 시퀀스가 여기에 로깅됩니다.</div>
+          </div>
+
+          <!-- Active Incentives Management Board (삭제 및 수정 기능 영역) -->
+          <div class="glass-panel glass-panel--interactive" id="admin-active-incentives-manager" style="margin-top: 16px; border-color: rgba(243, 115, 33, 0.2);">
+            <div class="panel-header" style="margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <h5 style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; color: var(--text-primary); margin: 0; font-family: var(--font-sans) !important;">
+                <i data-lucide="settings" class="color-primary icon-sm" style="color: var(--primary);"></i>
+                등록 완료된 시상안 편집 및 삭제
+              </h5>
+              <span id="active-incentives-count" style="font-size: 0.775rem; color: var(--primary); background: rgba(243, 115, 33, 0.1); padding: 3px 10px; border-radius: 20px; font-weight: 700; border: 1px solid rgba(243, 115, 33, 0.2);">총 0개 시상</span>
             </div>
             
-            <div class="console-body" id="console-logs-container">
-              <div class="console-placeholder-msg" style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
-                <i data-lucide="terminal" style="font-size: 28px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; color: var(--text-muted);"></i>
-                <p>시상안 파일을 업로드하거나 데모 버튼을 클릭하면<br>AI 스캐닝 및 데이터 자동 추출 가상화가 구동됩니다.</p>
-              </div>
-            </div>
-            
-            <!-- Loader panel inside console -->
-            <div class="console-analyzer-loader" id="analyzer-loader" style="display: none; flex-direction: column; align-items: center; padding: 20px; background: rgba(0,0,0,0.8); border-top: 1px solid rgba(255,255,255,0.1);">
-              <span id="analyzer-loader-text" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--primary); margin-bottom: 8px;">추출 중...</span>
-              <div class="loader-progress-bar" style="width: 80%; height: 4px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden;">
-                <div class="loader-progress-fill" id="loader-progress-fill-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
-              </div>
+            <div id="admin-incentives-list-wrapper" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+              <!-- Populated dynamically by renderActiveIncentivesManager in analyzer.js -->
             </div>
           </div>
 
@@ -333,9 +331,6 @@
         <!-- Content Scroll Area -->
         <div class="sheet-body-scroll" style="max-height: 480px; overflow-y: auto;">
           
-          <!-- PPT/PDF slide capture block -->
-          <div id="slide-capture-container" style="display: none;"></div>
-          
           <h2 class="bottom-sheet-title" id="detail-incentive-title" style="font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; display: none;">5월 4주차 장기보장성 신계약 건수 시상</h2>
           
           <p class="detail-description" id="detail-incentive-desc" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px; display: none;">
@@ -350,22 +345,7 @@
             <!-- Dynamic UI content will be injected based on category rules -->
           </div>
 
-          <!-- Weekly strategy and issue associated with this incentive -->
-          <div class="associated-strategy-section" style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 20px;">
-            <h5 style="font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-primary);">
-              <i data-lucide="compass" class="color-primary"></i> 이번 주 영업 이슈 및 지점 전략
-            </h5>
-            <div class="strategy-detail-box" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border); padding: 16px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 12px;">
-              <div class="strategy-sub-item">
-                <h6 style="color: var(--primary); font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">금주 핵심 영업 이슈</h6>
-                <p id="detail-weekly-issue" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">운전자보험 한도 축소 전 막판 스퍼트 절판 마케팅 집중 필요</p>
-              </div>
-              <div class="strategy-sub-item">
-                <h6 style="color: var(--primary); font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">지점 제안 실행 방향</h6>
-                <p id="detail-strategy-direction" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">기존 고객 대상 운전자보험 업셀링 플랜 제안서 전달 및 가족 일괄 가입 전략 활용</p>
-              </div>
-            </div>
-          </div>
+
           
         </div>
         
@@ -375,9 +355,9 @@
   </div>
 
   <!-- Load Scripts -->
-  <script src="data.js?v=6.2"></script>
-  <script src="analyzer.js?v=6.2"></script>
-  <script src="app.js?v=6.2"></script>
+  <script src="data.js?v=9.0"></script>
+  <script src="analyzer_new.js?v=9.0"></script>
+  <script src="app.js?v=9.0"></script>
   
   <!-- Sidebar Navigation Sync Script (Resolves visual routing triggers) -->
   <script>

@@ -468,8 +468,6 @@
     });
   }
 
-
-
   // File handling router
   function handleCustomFiles(files) {
     if (!files || files.length === 0) return;
@@ -492,8 +490,11 @@
       month = 4; // May
     }
 
-    // Set uploadedImageUrl if it is a real image file, or unzip PPTX media files to extract the first cover slide
+    // Set uploadedImageUrl if it is a real image file
     let uploadedImageUrl = "";
+    if (file && file.type && file.type.startsWith('image/')) {
+      uploadedImageUrl = URL.createObjectURL(file);
+    }
 
     const monthStr = String(month + 1).padStart(2, '0');
     let parsedObjects = [];
@@ -801,8 +802,6 @@
     // Hide loader and console smoothly after finish
     if (analyzerLoader) analyzerLoader.style.display = 'none';
     if (consoleLogsContainer) consoleLogsContainer.style.display = 'none';
-
-
 
     runSimulation(fileName, slideData, parsedObjects);
   }

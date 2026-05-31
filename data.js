@@ -16,7 +16,7 @@ window.INCENTIVE_DATABASE = {
       description: "5월 4주차 장기 보장성 초회보험료 50만 원 이상 달성 설계사 대상 현금 시상",
       weeklyIssue: "운전자보험 한도 축소 전 막판 스퍼트 절판 마케팅 집중 필요",
       direction: "기존 고객 대상 운전자보험 업셀링 플랜 제안서 전달 및 가족 일괄 가입 전략 활용",
-      slideImage: "images/media__1780136981494.png"
+      slideImage: ""
     },
     {
       id: "inc-002",
@@ -32,7 +32,7 @@ window.INCENTIVE_DATABASE = {
       description: "5월 4주차 자동차보험 신규 청약 3건 이상 가동 설계사 대상 특별 장려금 시상",
       weeklyIssue: "운전자보험과 자동차보험 연계 청약 마케팅 효과 극대화",
       direction: "가족 단위 자동차보험 갱신 리스트 활용 및 차별화된 다이렉트 대비 혜택 강조 제안",
-      slideImage: "images/media__1780137267439.png"
+      slideImage: ""
     },
     {
       id: "inc-003",
@@ -48,7 +48,7 @@ window.INCENTIVE_DATABASE = {
       description: "5월 4주차 신인 설계사 1명 도입 시 기존 소개 수당 외에 지점장 특별 추가 소개비 매칭",
       weeklyIssue: "주간 도입 타겟 FP 발굴 및 1:1 티타임 적극 권장",
       direction: "활동력 있는 후보자를 발굴하여 지점장 동반 미팅 추진 및 지점 분위기 활성화 유도",
-      slideImage: "images/media__1780137762632.png"
+      slideImage: ""
     },
     {
       id: "inc-004",
@@ -69,7 +69,7 @@ window.INCENTIVE_DATABASE = {
       description: "지점 FP 연속 활동성 보장을 위한 5월 주차별 연속 가동 격려금 프로모션",
       weeklyIssue: "매주 누락 없는 계약 가동 흐름 유지 관리",
       direction: "소액 화재보험이나 주택 보장 플랜을 활용해 1건 이상 가동 완료 관리",
-      slideImage: "images/media__1780137432412.png"
+      slideImage: ""
     },
     {
       id: "inc-005",
@@ -89,7 +89,7 @@ window.INCENTIVE_DATABASE = {
       description: "2026년 한화손보 전사 우수 설계사 연도대상 선발 및 포인트 누적 인센티브",
       weeklyIssue: "장기적인 매출 흐름 확보 및 우수 고객 관리",
       direction: "우량 가망고객 집중 업셀링 플랜 제공 및 패밀리 그룹 일괄 보장 설계 연동",
-      slideImage: "images/media__1780137850190.png"
+      slideImage: ""
     }
   ],
 
