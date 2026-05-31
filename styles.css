@@ -319,7 +319,7 @@ button {
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents flex children from stretching */
-  padding: 0 40px 40px 40px;
+  padding: 32px 40px 40px 40px;
 }
 
 /* Elegant Header */
@@ -2539,11 +2539,58 @@ input, select, button,
 
   /* Compress main layout padding to maximize screen usage (꽉 차게 최적화) */
   .main-content {
-    padding: 12px 10px 16px 10px !important;
+    padding: 8px 4px 16px 4px !important;
+  }
+
+  /* 모바일 헤더 조밀화 */
+  .app-header {
+    margin-bottom: 16px !important;
+    padding: 10px 4px 12px 4px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  
+  .app-header > div:last-child {
+    align-items: center !important;
+    width: 100% !important;
+    flex-direction: row-reverse !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+  
+  .ci-image-blend {
+    height: 32px !important;
+  }
+
+  .header-actions {
+    gap: 8px !important;
+  }
+
+  .profile-info {
+    margin-right: 8px !important;
+  }
+
+  .branch-name {
+    font-size: 0.8rem !important;
+  }
+  
+  .agent-badge {
+    font-size: 0.8rem !important;
+    padding: 3px 8px !important;
+  }
+
+  .header-title-section h1 {
+    font-size: 1.35rem !important;
+  }
+  
+  .header-title-section p {
+    font-size: 0.8rem !important;
+    margin-top: 4px !important;
   }
 
   .glass-panel {
-    padding: 12px !important;
+    padding: 10px 6px !important;
     border-radius: var(--radius-sm) !important;
   }
 
@@ -2690,18 +2737,84 @@ input, select, button,
   .calendar-day-cell.selected {
     transform: none !important;
   }
-  
+
+  /* calendar-header 세로 2행 구조로 안전 분할 (상단 연월 이동, 하단 카테고리 필터) */
+  .calendar-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    padding: 0 4px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .calendar-nav-buttons {
+    width: 100% !important;
+    justify-content: center !important;
+    order: 1 !important;
+  }
+
+  .calendar-month-title {
+    font-size: 1.15rem !important;
+    min-width: 130px !important;
+    font-weight: 800 !important;
+  }
+
   /* Make horizontal filter chips scrollable and neat on mobile */
   .category-filters {
+    order: 2 !important;
+    display: flex !important;
     gap: 6px !important;
     overflow-x: auto !important;
-    padding: 4px 0 !important;
+    padding: 4px 2px !important;
     width: 100% !important;
+    justify-content: flex-start !important;
     -webkit-overflow-scrolling: touch !important;
   }
-  
+
+  .category-filters::-webkit-scrollbar {
+    display: none !important; /* 가로 스크롤바 숨김으로 프리미엄 앱 UI 연출 */
+  }
+
   .filter-chip {
-    padding: 5px 10px !important;
+    padding: 6px 12px !important;
+    font-size: 0.725rem !important;
+    flex-shrink: 0 !important; /* 스크롤 중 찌그러짐 방지 */
+  }
+
+  /* 지점장 시상 목록 (.active-inc-item) 모바일 세로 레이아웃 및 겹침 해결 */
+  .active-inc-item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px !important;
+    gap: 10px !important;
+  }
+
+  .active-inc-item > div:first-child {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  .active-inc-item > div:last-child {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    margin-top: 4px !important;
+  }
+
+  .active-inc-item span[style*="max-width: 280px"] {
+    max-width: 100% !important; /* 모바일에서 생략표시 제거하고 넓게 표시 */
+    white-space: normal !important; /* 여러 줄 허용 */
+    font-size: 0.85rem !important;
+    line-height: 1.3 !important;
+  }
+
+  /* 요일 헤더 여백 조밀화 */
+  .calendar-weekday-header {
+    gap: 2px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .weekday-label {
     font-size: 0.725rem !important;
   }
 }

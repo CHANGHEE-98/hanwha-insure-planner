@@ -325,11 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
       daysArray.push({ dateStr: dayStr, label: d, isActiveMonth: false, isToday: false });
     }
 
-    // 2. Filter active short-term incentives (duration <= 60 days) to keep grid clean
+    // 2. Filter active incentives for the grid
     const gridIncentives = window.INCENTIVE_DATABASE.incentives.filter(inc => {
-      const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays > 60) return false;
       if (activeCategory !== 'all' && inc.category !== activeCategory) return false;
       return true;
     });
@@ -407,21 +404,37 @@ document.addEventListener('DOMContentLoaded', () => {
       let maxActiveSlot = -1;
       for (let s = 0; s < totalSlots; s++) {
         const inc = gridIncentives[s];
-        if (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate) {
+        const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const isLongTerm = diffDays >= 30;
+
+        const isActiveToday = isLongTerm 
+          ? (dayObj.dateStr === inc.endDate) 
+          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
+
+        if (isActiveToday) {
           maxActiveSlot = s;
         }
       }
 
       for (let s = 0; s <= maxActiveSlot; s++) {
         const inc = gridIncentives[s];
-        const isActiveToday = dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate;
+        const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const isLongTerm = diffDays >= 30;
+
+        const isActiveToday = isLongTerm 
+          ? (dayObj.dateStr === inc.endDate) 
+          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
 
         if (isActiveToday) {
-          const isPrevActive = cellIndex > 0 && 
+          const isPrevActive = !isLongTerm && 
+                               cellIndex > 0 && 
                                (cellIndex % 7 !== 0) && 
                                (daysArray[cellIndex - 1].dateStr >= inc.startDate && daysArray[cellIndex - 1].dateStr <= inc.endDate);
 
-          const isNextActive = cellIndex < 41 && 
+          const isNextActive = !isLongTerm && 
+                               cellIndex < 41 && 
                                (cellIndex % 7 !== 6) && 
                                (daysArray[cellIndex + 1].dateStr >= inc.startDate && daysArray[cellIndex + 1].dateStr <= inc.endDate);
 
@@ -430,6 +443,8 @@ document.addEventListener('DOMContentLoaded', () => {
           chip.className = `event-chip ${colorClass}`;
           chip.setAttribute('data-inc-id', inc.id);
           chip.title = inc.title;
+
+          const isMobile = window.innerWidth <= 768;
 
           if (!isPrevActive) {
             let spanCount = 1;
@@ -458,20 +473,24 @@ document.addEventListener('DOMContentLoaded', () => {
             let leftBridgeVar = continuesPrevWeek ? 'var(--right-bridge, 10px)' : '0px';
             let rightBridgeVar = continuesNextWeek ? 'var(--right-bridge, 10px)' : '0px';
             
-            chip.style.setProperty('width', `calc(${spanCount} * 100% + ${spanCount - 1} * var(--cell-gap-pad, 32px) + ${leftBridgeVar} + ${rightBridgeVar})`, 'important');
-            chip.style.setProperty('margin-right', `calc(-${spanCount - 1} * (100% + var(--cell-gap-pad, 32px)) - ${rightBridgeVar})`, 'important');
-            
-            if (continuesPrevWeek) {
-              chip.style.setProperty('margin-left', `calc(-1 * ${leftBridgeVar})`, 'important');
-              chip.classList.add('continues-prev');
-            }
-            if (continuesNextWeek) {
-              chip.classList.add('continues-next');
+            if (!isMobile) {
+              chip.style.setProperty('width', `calc(${spanCount} * 100% + ${spanCount - 1} * var(--cell-gap-pad, 32px) + ${leftBridgeVar} + ${rightBridgeVar})`, 'important');
+              chip.style.setProperty('margin-right', `calc(-${spanCount - 1} * (100% + var(--cell-gap-pad, 32px)) - ${rightBridgeVar})`, 'important');
+              
+              if (continuesPrevWeek) {
+                chip.style.setProperty('margin-left', `calc(-1 * ${leftBridgeVar})`, 'important');
+                chip.classList.add('continues-prev');
+              }
+              if (continuesNextWeek) {
+                chip.classList.add('continues-next');
+              }
             }
           }
 
-          const isMobile = window.innerWidth <= 768;
-          const displayTitle = isMobile ? getCompactTitle(inc.title) : (inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title);
+          let displayTitle = isMobile ? getCompactTitle(inc.title) : (inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title);
+          if (isLongTerm) {
+            displayTitle = `[마감] ${displayTitle}`;
+          }
 
           if (!isPrevActive && isNextActive) {
             chip.classList.add('span-start');
