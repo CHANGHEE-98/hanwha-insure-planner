@@ -2520,11 +2520,11 @@ input, select, button,
     border-radius: var(--radius-sm) !important;
   }
 
-  /* Day cells layout and aspect ratio - Auto-expand height to fit text chips! */
+  /* Day cells layout - expand height dynamically to fit text cards! */
   .calendar-day-cell {
     min-height: 60px !important;
     aspect-ratio: auto !important;
-    padding: 3px !important;
+    padding: 4px 3px 3px 3px !important;
     height: auto !important;
   }
 
@@ -2535,20 +2535,23 @@ input, select, button,
 
   /* Date layout inside header */
   .calendar-day-header-row {
-    margin-bottom: 2px !important;
+    margin-bottom: 3px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
   }
 
   .calendar-day-number {
-    font-size: 0.7rem !important;
+    font-size: 0.725rem !important;
     font-weight: 700 !important;
   }
 
   /* Compact 2W 마감 badge */
   .deadline-text-badge {
     font-size: 7.5px !important;
-    padding: 2px 4px !important;
+    padding: 1px 4px !important;
     height: 13px !important;
-    line-height: 1 !important;
+    line-height: 11px !important;
     border-radius: 2px !important;
   }
 
@@ -2574,44 +2577,87 @@ input, select, button,
     padding: 1px !important;
   }
 
-  /* Compact event chips containing readable text on mobile */
+  /* Highly compact event cards with visible text on mobile (Matches the user's preferred 2nd style!) */
   .event-chips-container {
     gap: 1.5px !important;
     margin-top: 3px !important;
   }
 
   .event-chip {
-    height: 14px !important;
-    min-height: 14px !important;
-    line-height: 13px !important;
-    padding: 0 3px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    line-height: 15px !important;
+    padding: 0 4px !important;
     font-size: 7.5px !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
     color: #FFFFFF !important;
-    border-radius: 2px !important;
+    border-radius: 3px !important;
     margin: 0 !important;
-    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.3) !important;
-    box-shadow: none !important;
+    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
     letter-spacing: -0.3px !important;
-    justify-content: flex-start !important; /* Align text left for better readability on narrow columns */
+    justify-content: flex-start !important; /* Align text left for better readability */
     text-align: left !important;
   }
   
   .event-chip.cat-two_annual {
     color: #141619 !important; /* Dark text for yellow contrast */
+    text-shadow: none !important;
   }
 
   .event-chip-placeholder {
-    height: 14px !important;
-    min-height: 14px !important;
+    height: 16px !important;
+    min-height: 16px !important;
     margin: 0 !important;
   }
 
-  /* Hide middle/end text to keep row clean, starting text stays visible! */
+  /* Reset event chips layout on mobile to discard spanning calculations and align neat inside cells */
+  .event-chips-container .event-chip {
+    width: 100% !important;
+    margin: 1px 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    font-size: 8px !important;
+    height: 15px !important;
+    line-height: 14px !important;
+    padding: 0 3px !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border-radius: 3px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+    display: flex !important;
+    position: static !important;
+  }
+
+  /* Restore visibility of span-middle and span-end chips on mobile so they display as standard colorful elements */
   .event-chips-container .event-chip.span-middle,
   .event-chips-container .event-chip.span-end {
-    color: transparent !important;
+    color: inherit !important;
+    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.4) !important;
+    background: inherit !important;
+    background-image: inherit !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    pointer-events: auto !important;
+  }
+
+  .event-chips-container .event-chip.span-middle.cat-long_auto,
+  .event-chips-container .event-chip.span-end.cat-long_auto {
+    background: linear-gradient(135deg, #00B0FF, #00E5FF) !important;
+    color: #FFFFFF !important;
+  }
+
+  .event-chips-container .event-chip.span-middle.cat-two_annual,
+  .event-chips-container .event-chip.span-end.cat-two_annual {
+    background: linear-gradient(135deg, #FFD600, #FFAB00) !important;
+    color: #141619 !important;
     text-shadow: none !important;
+  }
+
+  .event-chips-container .event-chip.span-middle.cat-recruitment,
+  .event-chips-container .event-chip.span-end.cat-recruitment {
+    background: linear-gradient(135deg, #00C853, #64DD17) !important;
+    color: #FFFFFF !important;
   }
 
   /* Prevent overlapping inside cell layout */

@@ -26,6 +26,16 @@ const TWOW_DEADLINES = {
 // Expose refresh function to window context so analyzer.js can access it
 window.refreshApp = null;
 
+// Helper function to return short compact text titles for mobile screen sizes
+function getCompactTitle(title) {
+  if (title.includes("장기보장성")) return "장기보장성";
+  if (title.includes("자동차보험")) return "자동차보험";
+  if (title.includes("도입")) return "신인도입";
+  if (title.includes("2W")) return "2W 연속";
+  if (title.includes("연도대상")) return "연도대상";
+  return title.length > 5 ? title.substring(0, 4) + "…" : title;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize State
   if (!window.INCENTIVE_DATABASE) {
@@ -495,22 +505,31 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // Determine ribbon-spanning visual classes based on continuity
+          const isMobile = window.innerWidth <= 768;
+          const displayTitle = isMobile ? getCompactTitle(inc.title) : (inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title);
+
           if (!isPrevActive && isNextActive) {
             // Segment Start: rounded left, flat right, shows title text centered across span
             chip.classList.add('span-start');
-            const displayTitle = inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title;
             chip.textContent = displayTitle;
           } else if (isPrevActive && isNextActive) {
-            // Segment Middle: fully flat, transparent, text hidden
+            // Segment Middle: fully flat, transparent, text hidden (unless mobile)
             chip.classList.add('span-middle');
-            chip.innerHTML = '&nbsp;';
+            if (isMobile) {
+              chip.textContent = displayTitle;
+            } else {
+              chip.innerHTML = '&nbsp;';
+            }
           } else if (isPrevActive && !isNextActive) {
-            // Segment End: flat left, rounded right, transparent, text hidden
+            // Segment End: flat left, rounded right, transparent, text hidden (unless mobile)
             chip.classList.add('span-end');
-            chip.innerHTML = '&nbsp;';
+            if (isMobile) {
+              chip.textContent = displayTitle;
+            } else {
+              chip.innerHTML = '&nbsp;';
+            }
           } else {
             // Standalone (1-day): fully rounded, shows title text centered
-            const displayTitle = inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title;
             chip.textContent = displayTitle;
           }
 
