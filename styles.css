@@ -2539,7 +2539,7 @@ input, select, button,
 
   /* Compress main layout padding to maximize screen usage (꽉 차게 최적화) */
   .main-content {
-    padding: 8px 4px 16px 4px !important;
+    padding: 8px 16px 16px 16px !important; /* 좌우 공간을 16px로 넓혀 타이트함을 완전 해소하고 기품 있는 여백 확보 */
   }
 
   /* 모바일 헤더 조밀화 */
@@ -2942,27 +2942,39 @@ input, select, button,
     font-size: 0.725rem !important;
   }
 
-  /* 모바일 바텀시트 시뮬레이터 높이 70% 고정 및 스크롤바 없는 완전 피팅 */
+  /* 모바일 바텀시트를 화면 정중앙 럭셔리 센터 플로팅 모달 카드로 대혁신 (스크롤바 완전 박멸) */
   .bottom-sheet-container {
-    padding: 12px 14px 14px 14px !important;
-    height: 70vh !important; /* 화면 높이의 70% 가득 차지하도록 고정 */
-    max-height: 70vh !important;
+    position: fixed !important;
+    bottom: auto !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -46%) !important; /* 진입 애니메이션 바운스 축 정렬 */
+    width: 94% !important; /* 가로 공간을 더 시원하게 채워 사용성 극대화 */
+    height: auto !important; /* 콘텐츠 높이에 맞게 유연하게 구성 */
+    max-height: 88vh !important; /* 세로를 시원하게 채우되 툴바 간섭 최소화 */
+    border-radius: 16px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+    padding: 12px 14px !important; /* 여백을 콤팩트하게 다듬어 1스크린 피팅 극대화 */
     display: flex !important;
     flex-direction: column !important;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .bottom-sheet-overlay.active .bottom-sheet-container {
+    transform: translate(-50%, -50%) !important; /* 중앙에 완전히 팝업 안착 */
   }
   
   .bottom-sheet-handle {
-    margin-bottom: 8px !important;
-    flex-shrink: 0 !important;
+    display: none !important; /* 센터 모달이므로 드래그 바 핸들은 깔끔히 소거 */
   }
   
   .bottom-sheet-header {
-    margin-bottom: 8px !important;
+    margin-bottom: 12px !important;
     flex-shrink: 0 !important;
   }
   
   .bottom-sheet-title {
-    font-size: 0.95rem !important;
+    font-size: 1.025rem !important; /* 시인성 강화를 위해 살짝 증폭 */
     margin-bottom: 2px !important;
   }
   
@@ -2971,14 +2983,15 @@ input, select, button,
   }
 
   .sheet-body-scroll {
-    max-height: none !important; /* 기존의 최대 높이 제한을 무력화 */
-    height: calc(100% - 78px) !important; /* 전체 높이에서 헤더와 저장버튼 영역 제외한 나머지 100% 활용 */
+    max-height: 68vh !important; /* 모바일 뷰포트 대비 유연한 최대 높이 설정 */
+    height: auto !important; /* 늘어난 공간 전체를 콘텐츠에 맞춰 유연하게 활용 */
     overflow-y: auto !important;
-    margin-bottom: 8px !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 2px !important;
   }
 
   .sheet-divider {
-    margin: 6px 0 !important; /* 구분선 여백 압축 */
+    margin: 8px 0 !important;
   }
 
   .simulator-wrapper, .milestones-simulator-wrapper {
@@ -3109,17 +3122,17 @@ input, select, button,
 
   /* 모바일 바텀시트 스크롤 영역 슬림화 & 저장 버튼 고정 최적화 */
   .sheet-body-scroll {
-    max-height: 240px !important;
-    margin-bottom: 6px !important;
+    max-height: 68vh !important; /* 중복 오버라이드 제거 및 콤팩트 뷰포트 높이 통일 */
+    margin-bottom: 4px !important;
   }
 
   .simulator-actions {
-    margin-top: 6px !important;
+    margin-top: 4px !important;
   }
 
   .simulator-actions button {
     padding: 8px 10px !important;
-    font-size: 0.875rem !important;
+    font-size: 0.825rem !important;
     border-radius: 8px !important;
   }
 }

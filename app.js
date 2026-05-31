@@ -398,8 +398,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const badgeSpan = document.createElement('span');
         badgeSpan.className = `deadline-text-badge text-${deadlineColor}`;
-        badgeSpan.textContent = '2W 마감';
-        badgeSpan.title = `2W 가동 ${weekNum}주차 마감일`;
+        badgeSpan.textContent = '2w'; // '2w 마감'을 '2w'로 단순 단축하여 공간 침범을 원천 해결
+        badgeSpan.title = `2w 가동 ${weekNum}주차 마감일`;
         badgeSpan.style.pointerEvents = 'auto';
         
         badgeSpan.addEventListener('click', (e) => {
