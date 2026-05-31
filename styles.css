@@ -2685,52 +2685,98 @@ input, select, button,
     margin: 0 !important;
   }
 
-  /* event-chips-container를 닷(Dot) 가로 정렬 컨테이너로 컴팩트화 (줄바꿈 및 뒤틀림 오류 원천 차단) */
+  /* event-chips-container를 세로 누적 배치 컨테이너로 변경 (아이폰 캘린더 스타일) */
   .event-chips-container {
     display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 4px !important;
-    margin-top: 6px !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    gap: 2px !important;
+    margin-top: 5px !important;
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
   }
 
-  /* 모바일 화면에서는 모든 시상 칩을 8px의 귀엽고 정돈된 둥근 컬러 도트(Dot)로 강제 정렬! */
+  /* 모바일 화면에서 아이폰 캘린더 스타일의 소프트 파스텔 둥근 캡슐 배지 장착 (글씨 선명 노출) */
   .event-chips-container .event-chip {
-    width: 8px !important;
-    min-width: 8px !important;
-    height: 8px !important;
-    min-height: 8px !important;
-    border-radius: 50% !important;
-    padding: 0 !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 15px !important;
+    min-height: 15px !important;
+    border-radius: 4px !important; /* 부드러운 둥근 직사각형 */
+    padding: 0 4px !important;
     margin: 0 !important;
     position: static !important;
-    color: transparent !important;
+    font-size: 7.5px !important;
+    font-weight: 800 !important;
+    line-height: 14px !important;
     text-shadow: none !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
-    display: inline-flex !important;
+    box-shadow: 0 0.5px 2px rgba(0,0,0,0.04) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
     cursor: pointer !important;
     pointer-events: auto !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: -0.4px !important;
+    box-sizing: border-box !important;
   }
 
-  /* span-middle 및 span-end 세그먼트는 닷으로 표현할 필요가 없으므로 완전히 숨김 (캘린더 무결성 보장) */
+  /* 닷 렌더링 시 가렸던 중간/끝 세그먼트를 캡슐 배지 상태에서는 무결성을 위해 독립 노출 처리 */
   .event-chips-container .event-chip.span-middle,
   .event-chips-container .event-chip.span-end {
-    display: none !important;
+    display: flex !important;
   }
 
-  /* 카테고리 도트별 한화 브랜드 프리미엄 색상 할당 */
+  /* 카테고리별 프리미엄 아이폰 캘린더 감성 소프트 파스텔 색상 조율 */
+  /* 1. 장기/자동차 (소프트 하늘색) */
   .event-chips-container .event-chip.cat-long_auto {
-    background: #00B0FF !important;
+    background: #E0F7FA !important;
+    color: #006064 !important;
+    border-left: 2px solid #00B0FF !important; /* 좌측 하이라이트 칼라바 적용 */
   }
+  
+  /* 2. 2W/연도대상 (소프트 골드 오렌지) */
   .event-chips-container .event-chip.cat-two_annual {
-    background: #FFD600 !important;
+    background: #FFF3E0 !important;
+    color: #E65100 !important;
+    border-left: 2px solid #FF9100 !important;
   }
+  
+  /* 3. 도입 (소프트 보라 - 제헌절 감성 그대로 이식) */
   .event-chips-container .event-chip.cat-recruitment {
-    background: #00C853 !important;
+    background: #F3E5F5 !important;
+    color: #4A148C !important;
+    border-left: 2px solid #D500F9 !important;
+  }
+
+  /* 4. 기타 개별 색상 오버라이드 대응 */
+  .event-chips-container .event-chip.override-purple {
+    background: #F3E5F5 !important;
+    color: #4A148C !important;
+    border-left: 2px solid #D500F9 !important;
+  }
+  
+  .event-chips-container .event-chip.override-blue {
+    background: #E0F7FA !important;
+    color: #006064 !important;
+    border-left: 2px solid #00B0FF !important;
+  }
+
+  .event-chips-container .event-chip.override-green {
+    background: #E8F5E9 !important;
+    color: #1B5E20 !important;
+    border-left: 2px solid #00C853 !important;
+  }
+  
+  .event-chips-container .event-chip.override-gold,
+  .event-chips-container .event-chip.override-orange {
+    background: #FFF3E0 !important;
+    color: #E65100 !important;
+    border-left: 2px solid #FF6D00 !important;
   }
 
   /* Prevent overlapping inside cell layout */
