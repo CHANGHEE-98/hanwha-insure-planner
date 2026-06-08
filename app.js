@@ -36,11 +36,116 @@ function getCompactTitle(title) {
   return title.length > 5 ? title.substring(0, 4) + "…" : title;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 1. Initialize State
+function syncIncentiveValuesWithExcel() {
+  if (!window.INCENTIVE_DATABASE || !window.INCENTIVE_DATABASE.agentProfile) return;
+  const profile = window.INCENTIVE_DATABASE.agentProfile;
+  const name = profile.name ? profile.name.trim() : "";
+  const branch = profile.branch ? profile.branch.trim() : "";
+  const code = profile.code ? profile.code.trim() : "";
+  const isBM = profile.role === 'bm';
+  
+  window.INCENTIVE_DATABASE.incentives.forEach(inc => {
+    if (inc.excelData && inc.excelData.length > 0) {
+      const searchName = isBM ? branch : name;
+      const match = inc.excelData.find(row => {
+        const rowCode = row.code ? String(row.code).trim() : "";
+        const rowName = row.name ? String(row.name).trim() : "";
+        
+        // Priority 1: Match by Code
+        if (code !== "" && rowCode !== "") {
+          return rowCode === code;
+        }
+        // Priority 2: Match by Name or Branch
+        return rowName === searchName || 
+               rowName === name || 
+               rowName === branch || 
+               searchName.includes(rowName) || 
+               rowName.includes(searchName);
+      });
+      if (match) {
+        inc.currentValue = match.value;
+      } else {
+        inc.currentValue = 0;
+      }
+    }
+  });
+}
+
+function getAchievementStatus(val, inc) {
+  const numVal = parseFloat(val);
+  if (inc.milestones && inc.milestones.length > 0) {
+    const sortedMilestones = [...inc.milestones].sort((a, b) => b.value - a.value);
+    const achievedMilestone = sortedMilestones.find(m => {
+      const numM = parseFloat(m.value);
+      if (!isNaN(numVal) && !isNaN(numM)) {
+        return numVal >= numM;
+      }
+      return String(val).trim() === String(m.value).trim();
+    });
+    if (achievedMilestone) {
+      return { achieved: true, text: `${achievedMilestone.name.split(' (')[0]}` };
+    }
+    return { achieved: false, text: '미달성' };
+  }
+  
+  const numTarget = parseFloat(inc.targetValue);
+  if (!isNaN(numVal) && !isNaN(numTarget)) {
+    if (numVal >= numTarget) {
+      return { achieved: true, text: '달성완료' };
+    }
+    return { achieved: false, text: '미달성' };
+  }
+  
+  const isMatch = String(val).trim() === String(inc.targetValue).trim();
+  return { achieved: isMatch, text: isMatch ? '달성완료' : '미달성' };
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Initialize State from IndexedDB (Async)
   if (!window.INCENTIVE_DATABASE) {
     console.error("Incentive Database mock not found!");
     return;
+  }
+
+  let storedIncentives = null;
+  try {
+    storedIncentives = await window.dbGet('hanwha_incentives');
+  } catch (e) {
+    console.error("Failed to load stored incentives from IndexedDB", e);
+  }
+
+  if (storedIncentives && Array.isArray(storedIncentives) && storedIncentives.length > 0) {
+    window.INCENTIVE_DATABASE.incentives = storedIncentives;
+  } else {
+    // Keep the default mock incentives from data.js and save them to IndexedDB
+    try {
+      await window.dbSet('hanwha_incentives', window.INCENTIVE_DATABASE.incentives);
+    } catch (err) {}
+  }
+
+  let storedProfile = null;
+  try {
+    storedProfile = await window.dbGet('hanwha_agent_profile');
+  } catch (e) {
+    console.error("Failed to load stored profile from IndexedDB", e);
+  }
+
+  if (storedProfile) {
+    window.INCENTIVE_DATABASE.agentProfile = storedProfile;
+  } else {
+    // Initialize stats to empty values for first-time visit
+    const profile = window.INCENTIVE_DATABASE.agentProfile;
+    profile.currentStats = {
+      contracts: 0,
+      premiums: 0,
+      converted: 0,
+      converted40k: "-",
+      retention: "-",
+      goods: 0,
+      two连续: 0,
+      points: 0,
+      recruits: 0
+    };
   }
 
   // 2. DOM Selection
@@ -88,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYear--;
       }
       renderCalendar();
+      renderSummaryList();
     });
   }
 
@@ -99,6 +205,35 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYear++;
       }
       renderCalendar();
+      renderSummaryList();
+    });
+  }
+
+  // Summary List Panel Monthly Navigation
+  const btnPrevSummaryMonth = document.getElementById('btn-prev-summary-month');
+  const btnNextSummaryMonth = document.getElementById('btn-next-summary-month');
+  
+  if (btnPrevSummaryMonth) {
+    btnPrevSummaryMonth.addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      renderCalendar();
+      renderSummaryList();
+    });
+  }
+
+  if (btnNextSummaryMonth) {
+    btnNextSummaryMonth.addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      renderCalendar();
+      renderSummaryList();
     });
   }
 
@@ -119,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLogout = document.getElementById('btn-logout');
   
   if (btnLoginSubmit && loginScreen) {
-    btnLoginSubmit.addEventListener('click', () => {
+    btnLoginSubmit.addEventListener('click', async () => {
       const usernameInput = document.getElementById('login-username'); // Code input field
       const passwordInput = document.getElementById('login-password'); // Password input field
       const isAdminCheckbox = document.getElementById('login-is-admin');
@@ -128,8 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Registered users database mapping codes to credentials and roles
       const registeredUsers = {
-        "112233": { role: "fp", name: "김한화", password: "112233", branch: "팔용지점" },
-        "8094780": { role: "bm", name: "이창희", password: "8094780", branch: "팔용지점" }
+        "112233": { role: "fp", name: "김철수", password: "112233", branch: "팔용지점" },
+        "8094780": { role: "bm", name: "이창희", password: "8094780", branch: "팔용지점" },
+        "123123": { role: "fp", name: "이창희", password: "123123", branch: "팔용지점" },
+        "123456": { role: "fp", name: "박재우", password: "123456", branch: "팔용지점" },
+        "456789": { role: "fp", name: "류한호", password: "456789", branch: "팔용지점" },
+        "789123": { role: "fp", name: "이형석", password: "789123", branch: "팔용지점" }
       };
       
       const enteredCode = usernameInput ? usernameInput.value.trim() : "";
@@ -198,29 +337,37 @@ document.addEventListener('DOMContentLoaded', () => {
       profile.name = name;
       profile.branch = branch;
       profile.role = role;
+      profile.code = enteredCode;
       
-      // Depending on the role, update stats values
-      if (role === 'bm') {
-        profile.currentStats = {
-          contracts: 48,
-          premiums: 4200000,
-          goods: 1,
-          two连续: 3,
-          points: 18500,
-          recruits: 8
-        };
+      // Keep stored stats if role matches, otherwise clear/initialize
+      let loadedProfile = null;
+      try {
+        loadedProfile = await window.dbGet('hanwha_agent_profile');
+      } catch (e) {}
+
+      if (loadedProfile && loadedProfile.role === role) {
+        profile.currentStats = loadedProfile.currentStats;
       } else {
         profile.currentStats = {
-          contracts: 3,
-          premiums: 180000,
-          goods: 1,
-          two连续: 1,
-          points: 6500,
-          recruits: 1
+          contracts: 0,
+          premiums: 0,
+          converted: 0,
+          converted40k: "-",
+          retention: "-",
+          goods: 0,
+          two连续: 0,
+          points: 0,
+          recruits: 0
         };
+      }
+      try {
+        await window.dbSet('hanwha_agent_profile', profile);
+      } catch (err) {
+        console.error("IndexedDB profile sync failed", err);
       }
       
       // Sync all dynamic widgets, lists and header text displays
+      syncIncentiveValuesWithExcel();
       updateUserRoleView();
       renderCalendar();
       renderSummaryList();
@@ -252,11 +399,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset input fields to defaults
       const usernameInput = document.getElementById('login-username');
       if (usernameInput) {
-        usernameInput.value = "112233";
+        usernameInput.value = "";
       }
       const passwordInput = document.getElementById('login-password');
       if (passwordInput) {
-        passwordInput.value = "112233";
+        passwordInput.value = "";
       }
       const isAdminCheckbox = document.getElementById('login-is-admin');
       if (isAdminCheckbox) {
@@ -338,7 +485,98 @@ document.addEventListener('DOMContentLoaded', () => {
       return true;
     });
 
-    const totalSlots = gridIncentives.length;
+    // Pre-calculate slots for all 6 weeks
+    const weeklySlots = [];
+    for (let w = 0; w < 6; w++) {
+      const weekIncentives = [];
+      gridIncentives.forEach(inc => {
+        const is2WWeeklyDeadline = (inc.category === 'two_annual' || inc.title.includes('2W')) 
+          && (inc.title.includes('마감') || inc.title.includes('주차별'));
+        if (is2WWeeklyDeadline) return;
+
+        let isActiveInWeek = false;
+        for (let d = 0; d < 7; d++) {
+          const cellIndex = w * 7 + d;
+          if (cellIndex >= daysArray.length) break;
+          const dayObj = daysArray[cellIndex];
+          const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const isLongTerm = diffDays >= 30;
+
+          const isActive = isLongTerm 
+            ? (dayObj.dateStr === inc.endDate) 
+            : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
+
+          if (isActive) {
+            isActiveInWeek = true;
+          }
+        }
+        if (isActiveInWeek) {
+          weekIncentives.push(inc);
+        }
+      });
+
+      // Sort week incentives: starts earlier first, then longer first
+      weekIncentives.sort((a, b) => {
+        if (a.startDate !== b.startDate) {
+          return a.startDate.localeCompare(b.startDate);
+        }
+        const durA = new Date(a.endDate) - new Date(a.startDate);
+        const durB = new Date(b.endDate) - new Date(b.startDate);
+        return durB - durA;
+      });
+
+      const slots = [];
+      weekIncentives.forEach(inc => {
+        const activeDays = [];
+        for (let d = 0; d < 7; d++) {
+          const cellIndex = w * 7 + d;
+          if (cellIndex >= daysArray.length) {
+            activeDays.push(false);
+            continue;
+          }
+          const dayObj = daysArray[cellIndex];
+          const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const isLongTerm = diffDays >= 30;
+
+          const isActive = isLongTerm 
+            ? (dayObj.dateStr === inc.endDate) 
+            : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
+          
+          activeDays.push(isActive);
+        }
+
+        let assignedSlot = -1;
+        for (let s = 0; s < slots.length; s++) {
+          let overlap = false;
+          for (let d = 0; d < 7; d++) {
+            if (activeDays[d] && slots[s][d] !== null) {
+              overlap = true;
+              break;
+            }
+          }
+          if (!overlap) {
+            assignedSlot = s;
+            break;
+          }
+        }
+
+        if (assignedSlot === -1) {
+          slots.push([null, null, null, null, null, null, null]);
+          assignedSlot = slots.length - 1;
+        }
+
+        for (let d = 0; d < 7; d++) {
+          if (activeDays[d]) {
+            slots[assignedSlot][d] = inc;
+          }
+        }
+      });
+
+      weeklySlots.push(slots);
+    }
+
     const fragment = document.createDocumentFragment();
 
     // 3. Render 42 day cells in the grid using DocumentFragment for maximum performance
@@ -425,47 +663,15 @@ document.addEventListener('DOMContentLoaded', () => {
       chipsContainer.className = 'event-chips-container';
       dayBox.appendChild(chipsContainer);
 
-      // Determine active slot height dynamically to avoid vertical overlaps
-      let maxActiveSlot = -1;
-      for (let s = 0; s < totalSlots; s++) {
-        const inc = gridIncentives[s];
-        const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const isLongTerm = diffDays >= 30;
+      const w = Math.floor(cellIndex / 7);
+      const d = cellIndex % 7;
+      const slots = weeklySlots[w] || [];
 
-        const isActiveToday = isLongTerm 
-          ? (dayObj.dateStr === inc.endDate) 
-          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate);
-
-        if (isActiveToday) {
-          maxActiveSlot = s;
-        }
-      }
-
-      for (let s = 0; s <= maxActiveSlot; s++) {
-        const inc = gridIncentives[s];
-        const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const isLongTerm = diffDays >= 30;
-
-        // 2W 주차별 마감 시상은 기간 가로 띠로 그리지 않고 스킵 (마감일 날짜 동그라미로만 표시)
-        const is2WWeeklyDeadline = (inc.category === 'two_annual' || inc.title.includes('2W')) 
-          && (inc.title.includes('마감') || inc.title.includes('주차별'));
-
-        const isActiveToday = !is2WWeeklyDeadline && (isLongTerm 
-          ? (dayObj.dateStr === inc.endDate) 
-          : (dayObj.dateStr >= inc.startDate && dayObj.dateStr <= inc.endDate));
-
-        if (isActiveToday) {
-          const isPrevActive = !isLongTerm && 
-                               cellIndex > 0 && 
-                               (cellIndex % 7 !== 0) && 
-                               (daysArray[cellIndex - 1].dateStr >= inc.startDate && daysArray[cellIndex - 1].dateStr <= inc.endDate);
-
-          const isNextActive = !isLongTerm && 
-                               cellIndex < 41 && 
-                               (cellIndex % 7 !== 6) && 
-                               (daysArray[cellIndex + 1].dateStr >= inc.startDate && daysArray[cellIndex + 1].dateStr <= inc.endDate);
+      for (let s = 0; s < slots.length; s++) {
+        const inc = slots[s][d];
+        if (inc !== null) {
+          const isPrevActive = (d > 0 && slots[s][d - 1] === inc);
+          const isNextActive = (d < 6 && slots[s][d + 1] === inc);
 
           const chip = document.createElement('div');
           let colorClass = inc.colorOverride ? `override-${inc.colorOverride}` : `cat-${inc.category}`;
@@ -477,25 +683,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (!isPrevActive) {
             let spanCount = 1;
-            let nextIndex = cellIndex + 1;
+            let checkD = d + 1;
+            while (checkD < 7 && slots[s][checkD] === inc) {
+              spanCount++;
+              checkD++;
+            }
+
             let continuesPrevWeek = cellIndex > 0 && 
                                     (cellIndex % 7 === 0) && 
                                     (daysArray[cellIndex - 1].dateStr >= inc.startDate && daysArray[cellIndex - 1].dateStr <= inc.endDate);
             let continuesNextWeek = false;
-            while (nextIndex < 42) {
-              if (nextIndex % 7 === 0) {
-                const nextDayStr = daysArray[nextIndex].dateStr;
-                if (nextDayStr >= inc.startDate && nextDayStr <= inc.endDate) {
-                  continuesNextWeek = true;
-                }
-                break;
-              }
-              const nextDayStr = daysArray[nextIndex].dateStr;
+            if (d + spanCount === 7 && cellIndex + spanCount < 42) {
+              const nextDayStr = daysArray[cellIndex + spanCount].dateStr;
               if (nextDayStr >= inc.startDate && nextDayStr <= inc.endDate) {
-                spanCount++;
-                nextIndex++;
-              } else {
-                break;
+                continuesNextWeek = true;
               }
             }
             
@@ -515,6 +716,10 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
+
+          const diffTime = Math.abs(new Date(inc.endDate) - new Date(inc.startDate));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const isLongTerm = diffDays >= 30;
 
           let displayTitle = isMobile ? getCompactTitle(inc.title) : (inc.title.length > 25 ? inc.title.substring(0, 24) + '…' : inc.title);
           if (isLongTerm) {
@@ -692,7 +897,9 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       heroDashboard.style.display = 'block';
-      if (window.lucide) window.lucide.createIcons();
+      if (window.lucide) {
+        window.lucide.createIcons({ root: heroDashboard });
+      }
     } else {
       heroDashboard.style.display = 'none';
       heroDashboard.innerHTML = '';
@@ -775,7 +982,15 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       activeIncentives.forEach(inc => {
         const maxMilestone = inc.milestones ? inc.milestones[inc.milestones.length - 1].value : inc.targetValue;
-        const percentage = Math.min(100, Math.round((inc.currentValue / maxMilestone) * 100));
+        
+        const numCurrent = parseFloat(inc.currentValue);
+        const numMax = parseFloat(maxMilestone);
+        let percentage = 0;
+        if (!isNaN(numCurrent) && !isNaN(numMax) && numMax > 0) {
+          percentage = Math.min(100, Math.round((numCurrent / numMax) * 100));
+        } else {
+          percentage = (String(inc.currentValue).trim() === String(maxMilestone).trim() && String(maxMilestone).trim() !== '') ? 100 : 0;
+        }
 
         let catLabel = '장기/자동차';
         let iconName = 'shield';
@@ -808,15 +1023,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     listWrapper.innerHTML = html;
 
-    // Add click listeners
-    listWrapper.querySelectorAll('.selected-date-row').forEach(row => {
-      row.addEventListener('click', () => {
+    // Event delegation on listWrapper
+    listWrapper.onclick = (e) => {
+      const row = e.target.closest('.selected-date-row');
+      if (row) {
         const incId = row.getAttribute('data-inc-id');
         openBottomSheet(incId);
-      });
-    });
+      }
+    };
 
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons({ root: listWrapper });
+    }
   }
 
   // Render "금주 영업 이슈 & 방향" Strategy Carousel
@@ -876,7 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons({ root: wrapper });
+    }
   }
 
   // Slide between issue strategy cards
@@ -897,67 +1117,106 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Populate "주요 시상 요약 및 달성률" Panel in the Sidebar
+  // Populate "주요 시상 요약 및 달성률" Panel in the Sidebar (linked with current calendar month)
   function renderSummaryList() {
     const wrapper = document.getElementById('summary-list-wrapper');
     if (!wrapper) return;
 
-    const incentives = window.INCENTIVE_DATABASE.incentives;
+    // Update Title text with current month
+    const titleEl = document.getElementById('summary-list-title');
+    if (titleEl) {
+      titleEl.textContent = `${currentMonth + 1}월 주요 시상 진척도`;
+    }
+
+    // Filter incentives by current calendar month range
+    const monthStartStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthEndStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+    const incentives = window.INCENTIVE_DATABASE.incentives.filter(inc => {
+      return inc.startDate <= monthEndStr && inc.endDate >= monthStartStr;
+    });
+
     let html = '';
     
-    incentives.forEach(inc => {
-      const maxMilestone = inc.milestones ? inc.milestones[inc.milestones.length - 1].value : inc.targetValue;
-      const percentage = Math.min(100, Math.round((inc.currentValue / maxMilestone) * 100));
-      
-      let displayVal = `${inc.currentValue}${inc.metricUnit} / ${maxMilestone}${inc.metricUnit}`;
-      if (inc.metricType === 'premiums') {
-        displayVal = `${(inc.currentValue / 10000).toFixed(0)}만 / ${(maxMilestone / 10000).toFixed(0)}만원`;
-      }
-      
-      // Category tag mapping
-      let catLabel = '장기/자동차';
-      let iconName = 'shield';
-      if (inc.category === 'two_annual') {
-        catLabel = '2W/연도대상';
-        iconName = 'calendar';
-      } else if (inc.category === 'recruitment') {
-        catLabel = '도입';
-        iconName = 'user-plus';
-      }
-      
-      html += `
-        <div class="summary-item-card" data-inc-id="${inc.id}">
-          <div class="summary-card-header">
-            <span class="category-indicator cat-${inc.category}">
-              <i data-lucide="${iconName}" class="icon-xs"></i>
-              ${catLabel}
-            </span>
-            <h5 class="summary-card-title">${inc.title}</h5>
-          </div>
-          <div class="summary-progress-area">
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill cat-${inc.category}" style="width: ${percentage}%"></div>
-            </div>
-            <div class="progress-values">
-              <span class="progress-val-text">${displayVal}</span>
-              <span class="pct-text ${percentage >= 100 ? 'complete' : ''}">${percentage}%</span>
-            </div>
-          </div>
+    if (incentives.length === 0) {
+      html = `
+        <div style="text-align: center; color: var(--text-muted); padding: 24px 0; font-size: 0.825rem; font-family: var(--font-sans);">
+          선택하신 월에 등록된 시상 일정이 없습니다.
         </div>
       `;
-    });
+    } else {
+      incentives.forEach(inc => {
+        const maxMilestone = inc.milestones ? inc.milestones[inc.milestones.length - 1].value : inc.targetValue;
+        
+        const numCurrent = parseFloat(inc.currentValue);
+        const numMax = parseFloat(maxMilestone);
+        let percentage = 0;
+        if (!isNaN(numCurrent) && !isNaN(numMax) && numMax > 0) {
+          percentage = Math.min(100, Math.round((numCurrent / numMax) * 100));
+        } else {
+          percentage = (String(inc.currentValue).trim() === String(maxMilestone).trim() && String(maxMilestone).trim() !== '') ? 100 : 0;
+        }
+        
+        let displayVal = '';
+        if (inc.metricUnit === '직접입력') {
+          displayVal = `${inc.currentValue} / ${maxMilestone}`;
+        } else if (inc.metricType === 'premiums') {
+          const numCurrParsed = parseFloat(inc.currentValue) || 0;
+          const numMaxParsed = parseFloat(maxMilestone) || 0;
+          displayVal = `${(numCurrParsed / 10000).toFixed(0)}만 / ${(numMaxParsed / 10000).toFixed(0)}만원`;
+        } else {
+          displayVal = `${inc.currentValue}${inc.metricUnit} / ${maxMilestone}${inc.metricUnit}`;
+        }
+        
+        // Category tag mapping
+        let catLabel = '장기/자동차';
+        let iconName = 'shield';
+        if (inc.category === 'two_annual') {
+          catLabel = '2W/연도대상';
+          iconName = 'calendar';
+        } else if (inc.category === 'recruitment') {
+          catLabel = '도입';
+          iconName = 'user-plus';
+        }
+        
+        html += `
+          <div class="summary-item-card" data-inc-id="${inc.id}">
+            <div class="summary-card-header">
+              <span class="category-indicator cat-${inc.category}">
+                <i data-lucide="${iconName}" class="icon-xs"></i>
+                ${catLabel}
+              </span>
+              <h5 class="summary-card-title">${inc.title}</h5>
+            </div>
+            <div class="summary-progress-area">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill cat-${inc.category}" style="width: ${percentage}%"></div>
+              </div>
+              <div class="progress-values">
+                <span class="progress-val-text">${displayVal}</span>
+                <span class="pct-text ${percentage >= 100 ? 'complete' : ''}">${percentage}%</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
     
     wrapper.innerHTML = html;
     
-    // Add click listeners to shortcut directly to bottom sheets
-    wrapper.querySelectorAll('.summary-item-card').forEach(card => {
-      card.addEventListener('click', () => {
+    // Event delegation on wrapper
+    wrapper.onclick = (e) => {
+      const card = e.target.closest('.summary-item-card');
+      if (card) {
         const incId = card.getAttribute('data-inc-id');
         openBottomSheet(incId);
-      });
-    });
+      }
+    };
     
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons({ root: wrapper });
+    }
   }
 
   // Handle User Role Mode Switching (Visual Updates & Stats Sync)
@@ -976,8 +1235,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sideName = document.getElementById('sidebar-user-name');
     const sideBranch = document.getElementById('sidebar-user-branch');
     
-    const welcomeHeader = document.querySelector('.welcome-header h3');
-    
     if (role === 'bm') {
       // Branch Manager Mode: show admin views
       if (adminBtn) adminBtn.style.display = 'inline-flex';
@@ -994,15 +1251,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sideBranch) {
         sideBranch.textContent = '';
         sideBranch.style.display = 'none'; // Completely hide to prevent spacing gaps
-      }
-      
-      // Swap stats with aggregate Branch metrics
-      document.getElementById('quick-stat-contracts').textContent = '48';
-      document.getElementById('quick-stat-premiums').textContent = '4,200,000';
-      document.getElementById('quick-stat-recruits').textContent = '8';
-      
-      if (welcomeHeader) {
-        welcomeHeader.textContent = '지점 실적 현황';
       }
     } else {
       // FP Mode: hide admin views
@@ -1038,18 +1286,11 @@ document.addEventListener('DOMContentLoaded', () => {
         sideBranch.textContent = branch;
         sideBranch.style.display = 'block'; // Restore display state for FP mode
       }
-      
-      // Revert stats back to individual metrics
-      document.getElementById('quick-stat-contracts').textContent = '3';
-      document.getElementById('quick-stat-premiums').textContent = '180,000';
-      document.getElementById('quick-stat-recruits').textContent = '1';
-      
-      if (welcomeHeader) {
-        welcomeHeader.innerHTML = `오늘도 파이팅입니다! <span class="highlight-text" id="welcome-agent-name">${name} FP</span>님`;
-      }
     }
     
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons({ root: document.querySelector('.app-container') });
+    }
   }
 
   // --- Dynamic Bottom Sheet Simulator Engine ---
@@ -1073,9 +1314,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('detail-date-duration').textContent = `${formatDateShort(inc.startDate)} ~ ${formatDateShort(inc.endDate)}`;
 
 
+    // Render incentive image if present (New Feature)
+    const imgContainer = document.getElementById('detail-incentive-image-container');
+    if (imgContainer) {
+      if (inc.slideImage) {
+        imgContainer.innerHTML = `<img src="${inc.slideImage}" style="width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; cursor: zoom-in; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid var(--border);">`;
+        imgContainer.style.display = 'block';
+        imgContainer.querySelector('img').addEventListener('click', () => {
+          if (typeof window.openImageLightbox === 'function') {
+            window.openImageLightbox(inc.slideImage);
+          }
+        });
+      } else {
+        imgContainer.style.display = 'none';
+        imgContainer.innerHTML = '';
+      }
+    }
 
     // Render interactive simulation slider layout
     renderDynamicCategoryLayout(inc);
+
+    // Hide simulator save button actions container
+    const saveBtnAction = document.querySelector('.simulator-actions');
+    if (saveBtnAction) {
+      saveBtnAction.style.display = 'none';
+    }
 
     // Show slide sheet container overlay
     if (bottomSheetOverlay) {
@@ -1098,440 +1361,119 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
   }
 
-  // Inject interactive range slider simulator matching specific category structures
+
+
+  // Inject actual progress status layout matching xlsx data
   function renderDynamicCategoryLayout(inc) {
     const container = document.getElementById('dynamic-category-layout');
     if (!container) return;
 
-    // Determine layout type based on milestones presence
-    const hasMilestones = inc.milestones && inc.milestones.length > 0;
     const profile = window.INCENTIVE_DATABASE.agentProfile;
 
-    if (!hasMilestones) {
-      // --- Case A: Simple Track Simulator (Contracts & Premiums) ---
-      let min = 0;
-      let max = 10;
-      let step = 1;
-      
-      if (inc.metricType === 'premiums') {
-        max = Math.max(600000, inc.targetValue * 1.5);
-        step = 10000;
-      } else if (inc.metricType === 'goods') {
-        max = 2;
-        step = 1;
-      } else {
-        max = Math.max(10, inc.targetValue * 2);
-        step = 1;
-      }
-
+    if (!inc.excelData || inc.excelData.length === 0) {
       container.innerHTML = `
-        <div class="simulator-wrapper">
-          <div class="simulator-header">
-            <span class="simulator-tag"><i data-lucide="sliders"></i> 시상 달성 시뮬레이터</span>
-            <div id="bottom-sheet-achieved-badge"></div>
+        <div class="no-excel-data-wrapper" style="text-align: center; padding: 32px 16px; font-family: var(--font-sans) !important;">
+          <div style="background: rgba(243, 115, 33, 0.05); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; color: var(--primary);">
+            <i data-lucide="file-spreadsheet" style="width: 28px; height: 28px;"></i>
           </div>
-
-          <!-- 설계사 개별 실적 연동 인포 바 -->
-          <div style="background: rgba(243, 115, 33, 0.03); border: 1px solid rgba(243, 115, 33, 0.1); padding: 8px 14px; border-radius: 8px; font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; font-family: var(--font-sans) !important;">
-            <span><i data-lucide="user" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; color: var(--primary); margin-right: 4px;"></i> 현재 연동 FP: <b style="color: var(--text-primary);">${profile.name}</b></span>
-            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500;">Excel 첨부 시 실시간 매핑</span>
-          </div>
-          
-          <div class="simulation-metric-display">
-            <div class="metric-block">
-              <span class="metric-label">현재 실적</span>
-              <span class="metric-value color-primary" id="sim-current-val-display">0</span>
-            </div>
-            <div class="metric-arrow"><i data-lucide="chevrons-right"></i></div>
-            <div class="metric-block">
-              <span class="metric-label">목표 기준</span>
-              <span class="metric-value" id="sim-target-val-display">${inc.metricType === 'premiums' ? inc.targetValue.toLocaleString() + '원' : inc.targetValue + inc.metricUnit}</span>
-            </div>
-          </div>
-
-          <!-- Premium Interactive Number Input Panel (Replaces Slider) -->
-          <div class="simulator-input-container" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin: 24px 0 12px 0; font-family: var(--font-sans) !important;">
-            <button class="btn-sim-adjust" id="btn-sim-decrease" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="감소">-</button>
-            <div class="sim-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
-              <input type="number" class="simulator-num-input" id="bottom-sheet-input" min="0" step="${step}" value="${inc.currentValue}" style="width: 190px; height: 46px; text-align: center; font-size: 1.35rem; font-weight: 900; color: var(--primary); background: #FFFFFF; border: 2.5px solid var(--primary); border-radius: 14px; padding: 0 35px 0 15px; box-shadow: 0 4px 12px rgba(243, 115, 33, 0.06); transition: all 0.2s ease;">
-              <span class="sim-input-unit" style="position: absolute; right: 15px; font-size: 0.95rem; font-weight: 800; color: var(--text-secondary); pointer-events: none;">${inc.metricUnit}</span>
-            </div>
-            <button class="btn-sim-adjust" id="btn-sim-increase" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="증가">+</button>
-          </div>
-
-          <!-- Visual Progress Gauge Bar -->
-          <div class="sim-progress-bar-container" style="width: 100%; height: 8px; background: rgba(0, 0, 0, 0.05); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 8px; position: relative;">
-            <div class="sim-progress-bar-fill" id="bottom-sheet-progress-bar-fill" style="height: 100%; background: linear-gradient(to right, var(--primary), var(--secondary)); border-radius: var(--radius-full); width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
-          </div>
-          
-          <div class="slider-progress-percentage" id="bottom-sheet-slider-percentage" style="margin-bottom: 20px;">
-            시뮬레이션 달성률: 0%
-          </div>
-          
-          <div class="reward-highlight-box">
-            <div class="reward-icon-circle"><i data-lucide="gift"></i></div>
-            <div class="reward-info-text">
-              <span class="reward-label" id="bottom-sheet-reward-label">달성 시 획득 시상안</span>
-              <h4 class="reward-title" id="bottom-sheet-reward-text" style="transition: color 0.3s; font-weight: 800;">${inc.reward}</h4>
-            </div>
-          </div>
+          <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">실적 연동 데이터 없음</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0;">
+            지점장 계정으로 로그인 후 <b>[시상안 업로드]</b> 탭에서<br>
+            해당 시책의 <b>'실적연동' (Excel 업로드)</b> 버튼을 클릭하여 파일 매핑을 진행해 주세요.
+          </p>
         </div>
       `;
-
-      // Cache Interactive Controls
-      const simInput = document.getElementById('bottom-sheet-input');
-      const progressBarFill = document.getElementById('bottom-sheet-progress-bar-fill');
-      const btnDecrease = document.getElementById('btn-sim-decrease');
-      const btnIncrease = document.getElementById('btn-sim-increase');
-      const currentValDisplay = document.getElementById('sim-current-val-display');
-      const percentageDisplay = document.getElementById('bottom-sheet-slider-percentage');
-      const badgeContainer = document.getElementById('bottom-sheet-achieved-badge');
-      const rewardBox = document.querySelector('.reward-highlight-box');
-      const rewardTextEl = document.getElementById('bottom-sheet-reward-text');
-      const rewardLabelEl = document.getElementById('bottom-sheet-reward-label');
-
-      const updateSimulation = (simVal) => {
-        simVal = Number(simVal);
-        window.temporarySimulationValue = simVal;
-        let displayVal = simVal;
-        
-        if (inc.metricType === 'premiums') {
-          displayVal = simVal.toLocaleString() + '원';
-        } else if (inc.metricType === 'goods') {
-          displayVal = simVal === 0 ? '미가동' : simVal === 1 ? '모바일 가동완료' : '초과 달성';
-        } else {
-          displayVal = simVal + inc.metricUnit;
-        }
-        currentValDisplay.textContent = displayVal;
-        
-        // Sync input field value
-        simInput.value = simVal;
-
-        // Calculate progress percentage
-        const percentage = Math.min(100, Math.round((simVal / inc.targetValue) * 100));
-        percentageDisplay.innerHTML = `시뮬레이션 달성률: <b class="color-primary">${percentage}%</b>`;
-        
-        // Progress track fill calculation
-        progressBarFill.style.width = `${percentage}%`;
-        
-        // Dynamic Reward Payout Calculation
-        let currentReward = inc.reward;
-        
-        // If the reward is '시상 0원' or contains '300%' or '비례' or is a percentage payout
-        if (inc.title.includes('리치 프로모션') || inc.description.includes('300%')) {
-          const calculatedAmt = simVal * 3; // 300% payout
-          currentReward = `시상금 ${calculatedAmt.toLocaleString()}원 (300% 지급)`;
-        } else if (inc.reward.includes('0원') || inc.reward === '0' || !inc.reward) {
-          if (inc.metricType === 'premiums') {
-            currentReward = `시상금 ${(simVal * 1.5).toLocaleString()}원 (초회보험료 150% 지급)`;
-          } else {
-            currentReward = `시상금 200,000원 지급`;
-          }
-        } else if (inc.reward.includes('보너스 제공') || inc.reward.includes('시상금 지급')) {
-          const baseAmt = inc.targetValue * 1.5;
-          currentReward = `시상금 ${baseAmt.toLocaleString()}원 지급`;
-        }
-
-        // Toggle Active Badges & rewards dynamic display
-        const isAchieved = simVal >= inc.targetValue;
-        if (isAchieved) {
-          badgeContainer.innerHTML = `<span class="achievement-badge achieved"><i data-lucide="check"></i> 달성완료</span>`;
-          rewardBox.classList.add('achieved-highlight');
-          if (rewardTextEl) {
-            rewardTextEl.style.color = 'var(--accent-success)';
-            rewardTextEl.innerHTML = `<i data-lucide="award" class="icon-sm inline-icon" style="color:var(--accent-success); margin-right: 4px; vertical-align: middle;"></i> 달성 보상: ${currentReward}`;
-          }
-          if (rewardLabelEl) rewardLabelEl.textContent = "시상 획득 완료! 🎉";
-        } else {
-          badgeContainer.innerHTML = `<span class="achievement-badge pending">미달성</span>`;
-          rewardBox.classList.remove('achieved-highlight');
-          if (rewardTextEl) {
-            rewardTextEl.style.color = 'var(--text-secondary)';
-            rewardTextEl.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-right: 4px;">[달성 시]</span>${currentReward}`;
-          }
-          if (rewardLabelEl) rewardLabelEl.textContent = "달성 시 획득 시상안";
-        }
-        if (window.lucide) window.lucide.createIcons();
-      };
-
-      // Direct Typed Input Handler
-      simInput.addEventListener('input', (e) => {
-        let val = Number(e.target.value);
-        if (val < 0) val = 0;
-        updateSimulation(val);
-      });
-
-      // Step Buttons Handler
-      const stepVal = inc.metricType === 'premiums' ? 50000 : (inc.metricType === 'two_tier' && inc.metricUnit === '만 포인트' ? 1000 : 1);
-      btnDecrease.addEventListener('click', () => {
-        let val = Number(simInput.value) - stepVal;
-        if (val < 0) val = 0;
-        updateSimulation(val);
-      });
-      btnIncrease.addEventListener('click', () => {
-        let val = Number(simInput.value) + stepVal;
-        updateSimulation(val);
-      });
-
-      // Trigger initial layout draw
-      updateSimulation(inc.currentValue);
-    } else {
-      // --- Case B: Segmented Milestone Track (milestones exists, e.g. 2W, 도입, 3·6·9 전략상품 등) ---
-      const milestones = inc.milestones || [];
-      const maxVal = milestones[milestones.length - 1].value;
-      
-      // Define Slider Bounds
-      let min = 0;
-      let max = maxVal;
-      let step = 1;
-      
-      if (inc.metricType === 'premiums') {
-        max = Math.max(1200000, maxVal * 1.1);
-        step = 10000;
-      } else if (inc.metricType === 'two_tier' && inc.metricUnit === '만 포인트') {
-        max = Math.max(35000, maxVal * 1.1);
-        step = 500;
-      } else if (inc.metricType === 'two_tier') {
-        max = Math.max(5, maxVal + 1);
-        step = 1;
-      } else {
-        max = Math.max(10, maxVal + 1);
-        step = 1;
-      }
-
-      // Generate Segmented Nodes HTML
-      let nodesHtml = '';
-      milestones.forEach((milestone) => {
-        const pct = (milestone.value / max) * 100;
-        nodesHtml += `
-          <div class="milestone-node" style="left: ${pct}%" data-value="${milestone.value}">
-            <div class="node-dot"></div>
-            <div class="node-label">
-              <span class="node-name">${milestone.name.split(' (')[0]}</span>
-              <span class="node-val">${milestone.value.toLocaleString()}${inc.metricUnit === '만 포인트' ? '만pt' : inc.metricUnit}</span>
-            </div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = `
-        <div class="milestones-simulator-wrapper">
-          <div class="simulator-header">
-            <span class="simulator-tag"><i data-lucide="sliders"></i> 시상 달성 시뮬레이터</span>
-            <div id="milestone-current-tier-badge"></div>
-          </div>
-          
-          <!-- 설계사 개별 실적 연동 인포 바 -->
-          <div style="background: rgba(243, 115, 33, 0.03); border: 1px solid rgba(243, 115, 33, 0.1); padding: 8px 14px; border-radius: 8px; font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; font-family: var(--font-sans) !important;">
-            <span><i data-lucide="user" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; color: var(--primary); margin-right: 4px;"></i> 현재 연동 FP: <b style="color: var(--text-primary);">${profile.name}</b></span>
-            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500;">Excel 첨부 시 실시간 매핑</span>
-          </div>
-
-          <!-- Horizontal Track Progress Bar -->
-          <div class="milestone-track-container">
-            <div class="milestone-track-bg">
-              <div class="milestone-track-fill" id="milestone-progress-fill"></div>
-            </div>
-            <div class="milestone-nodes-row">
-              ${nodesHtml}
-            </div>
-          </div>
-          
-          <div class="simulation-metric-display">
-            <div class="metric-block">
-              <span class="metric-label">현재 실적</span>
-              <span class="metric-value color-primary" id="milestone-sim-current-val-display">0</span>
-            </div>
-            <div class="metric-arrow"><i data-lucide="chevrons-right"></i></div>
-            <div class="metric-block">
-              <span class="metric-label">다음 목표</span>
-              <span class="metric-value" id="milestone-sim-next-val-display">-</span>
-            </div>
-          </div>
-
-          <!-- Premium Interactive Number Input Panel (Replaces Slider) -->
-          <div class="simulator-input-container" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin: 24px 0 12px 0; font-family: var(--font-sans) !important;">
-            <button class="btn-sim-adjust" id="btn-sim-milestone-decrease" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="감소">-</button>
-            <div class="sim-input-box-wrapper" style="position: relative; display: flex; align-items: center;">
-              <input type="number" class="simulator-num-input" id="bottom-sheet-milestone-input" min="0" step="${step}" value="${inc.currentValue}" style="width: 190px; height: 46px; text-align: center; font-size: 1.35rem; font-weight: 900; color: var(--primary); background: #FFFFFF; border: 2.5px solid var(--primary); border-radius: 14px; padding: 0 35px 0 15px; box-shadow: 0 4px 12px rgba(243, 115, 33, 0.06); transition: all 0.2s ease;">
-              <span class="sim-input-unit" style="position: absolute; right: 15px; font-size: 0.95rem; font-weight: 800; color: var(--text-secondary); pointer-events: none;">${inc.metricUnit === '만 포인트' ? '만pt' : inc.metricUnit}</span>
-            </div>
-            <button class="btn-sim-adjust" id="btn-sim-milestone-increase" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid rgba(243, 115, 33, 0.2); background: #FFFFFF; color: var(--primary); font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(243, 115, 33, 0.04); cursor: pointer;" title="증가">+</button>
-          </div>
-          
-          <div class="milestone-gap-announcement" id="milestone-gap-text" style="margin-bottom: 20px;">
-            다음 단계까지 0 남았습니다.
-          </div>
-
-          <div class="reward-highlight-box" id="milestone-reward-box">
-            <div class="reward-icon-circle"><i data-lucide="gift"></i></div>
-            <div class="reward-info-text">
-              <span class="reward-label" id="milestone-reward-label">현재 달성 혜택</span>
-              <h4 class="reward-title" id="milestone-reward-title" style="transition: color 0.3s; font-weight: 800;">없음</h4>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // Cache Interactive Controls
-      const simInput = document.getElementById('bottom-sheet-milestone-input');
-      const btnDecrease = document.getElementById('btn-sim-milestone-decrease');
-      const btnIncrease = document.getElementById('btn-sim-milestone-increase');
-      const currentValDisplay = document.getElementById('milestone-sim-current-val-display');
-      const nextValDisplay = document.getElementById('milestone-sim-next-val-display');
-      const progressFill = document.getElementById('milestone-progress-fill');
-      const gapText = document.getElementById('milestone-gap-text');
-      const rewardTitle = document.getElementById('milestone-reward-title');
-      const rewardLabel = document.getElementById('milestone-reward-label');
-      const tierBadge = document.getElementById('milestone-current-tier-badge');
-      const rewardBox = document.getElementById('milestone-reward-box');
-
-      const updateMilestones = (simVal) => {
-        simVal = Number(simVal);
-        window.temporarySimulationValue = simVal;
-        const unitLabel = inc.metricUnit === '만 포인트' ? '만pt' : inc.metricUnit;
-        
-        let displayVal = simVal;
-        if (inc.metricType === 'premiums') {
-          displayVal = simVal.toLocaleString() + '원';
-        } else {
-          displayVal = simVal.toLocaleString() + unitLabel;
-        }
-        currentValDisplay.textContent = displayVal;
-        
-        // Sync input field value
-        simInput.value = simVal;
-
-        // Progress track calculation
-        const trackPct = Math.min(100, (simVal / max) * 100);
-        progressFill.style.width = `${trackPct}%`;
-        
-        // Toggle Node Active States
-        const nodes = container.querySelectorAll('.milestone-node');
-        nodes.forEach(node => {
-          const nodeVal = Number(node.getAttribute('data-value'));
-          if (simVal >= nodeVal) {
-            node.classList.add('active');
-          } else {
-            node.classList.remove('active');
-          }
-        });
-        
-        // Scan active and subsequent milestones
-        let activeMilestone = null;
-        let nextMilestone = null;
-        
-        for (let i = 0; i < milestones.length; i++) {
-          if (simVal >= milestones[i].value) {
-            activeMilestone = milestones[i];
-          } else {
-            nextMilestone = milestones[i];
-            break;
-          }
-        }
-        
-        // Render Active Status & Tier Awards
-        if (activeMilestone) {
-          tierBadge.innerHTML = `<span class="achievement-badge achieved"><i data-lucide="award"></i> ${activeMilestone.name.split(' (')[0]}</span>`;
-          rewardBox.classList.add('achieved-highlight');
-          rewardLabel.textContent = `현재 달성 혜택 (${activeMilestone.name})`;
-          rewardTitle.style.color = 'var(--accent-success)';
-          rewardTitle.innerHTML = `<i data-lucide="check" class="icon-sm inline-icon" style="color:var(--accent-success); margin-right: 4px;"></i> ${activeMilestone.reward}`;
-        } else {
-          tierBadge.innerHTML = `<span class="achievement-badge pending">미달성</span>`;
-          rewardBox.classList.remove('achieved-highlight');
-          rewardLabel.textContent = "현재 달성 혜택";
-          rewardTitle.style.color = 'var(--text-secondary)';
-          rewardTitle.textContent = "없음 (목표 달성 시 시상 혜택 잠금해제)";
-        }
-        
-        // Render next milestone gap message
-        if (nextMilestone) {
-          const gap = nextMilestone.value - simVal;
-          let gapDisplay = gap;
-          let nextDisplay = nextMilestone.value;
-          
-          if (inc.metricType === 'premiums') {
-            gapDisplay = gap.toLocaleString() + '원';
-            nextDisplay = nextMilestone.value.toLocaleString() + '원';
-          } else {
-            gapDisplay = gap.toLocaleString() + unitLabel;
-            nextDisplay = nextMilestone.value.toLocaleString() + unitLabel;
-          }
-          
-          nextValDisplay.textContent = nextDisplay;
-          gapText.innerHTML = `다음 단계 <b>[${nextMilestone.name}]</b>까지 <b>${gapDisplay}</b> 남았습니다!`;
-        } else {
-          nextValDisplay.textContent = "최고 등급";
-          gapText.innerHTML = `<b class="color-success">축하합니다! 최고 등급 시상 혜택(초과 달성)을 잠금 해제하셨습니다!</b>`;
-        }
-        
-        if (window.lucide) window.lucide.createIcons();
-      };
-
-      // Direct Typed Input Handler
-      simInput.addEventListener('input', (e) => {
-        let val = Number(e.target.value);
-        if (val < 0) val = 0;
-        updateMilestones(val);
-      });
-
-      // Step Buttons Handler
-      const stepVal = inc.metricType === 'premiums' ? 50000 : (inc.metricType === 'two_tier' && inc.metricUnit === '만 포인트' ? 1000 : 1);
-      btnDecrease.addEventListener('click', () => {
-        let val = Number(simInput.value) - stepVal;
-        if (val < 0) val = 0;
-        updateMilestones(val);
-      });
-      btnIncrease.addEventListener('click', () => {
-        let val = Number(simInput.value) + stepVal;
-        updateMilestones(val);
-      });
-
-      // Trigger initial layout draw
-      updateMilestones(inc.currentValue);
+      if (window.lucide) window.lucide.createIcons();
+      return;
     }
-    
-    if (window.lucide) window.lucide.createIcons();
+
+    // Render Excel rank list
+    const sortedData = [...inc.excelData].sort((a, b) => {
+      const valA = parseFloat(a.value);
+      const valB = parseFloat(b.value);
+      if (!isNaN(valA) && !isNaN(valB)) {
+        return valB - valA;
+      }
+      return String(b.value).localeCompare(String(a.value));
+    });
+
+    const searchName = profile.role === 'bm' ? (profile.branch ? profile.branch.trim() : "") : (profile.name ? profile.name.trim() : "");
+
+    let tableRowsHtml = '';
+    sortedData.forEach((row, idx) => {
+      const rowCode = row.code ? String(row.code).trim() : "";
+      const rowName = row.name ? String(row.name).trim() : "";
+      
+      const isMe = (profile.code && rowCode !== "" && rowCode === profile.code.trim()) || 
+                   (profile.name && rowName !== "" && rowName === profile.name.trim()) || 
+                   (rowName !== "" && rowName === searchName) || 
+                   (rowName !== "" && rowName === (profile.branch ? profile.branch.trim() : ""));
+                   
+      if (!isMe) return;
+
+      const statusObj = getAchievementStatus(row.value, inc);
+      
+      let displayValue = row.value;
+      const num = parseFloat(row.value);
+      if (!isNaN(num)) {
+        const flooredNum = Math.floor(num);
+        if (inc.metricType === 'premiums') {
+          displayValue = flooredNum.toLocaleString() + '원';
+        } else {
+          displayValue = flooredNum + (inc.metricUnit !== '직접입력' ? inc.metricUnit : '');
+        }
+      } else {
+        displayValue = row.value + (inc.metricUnit !== '직접입력' ? inc.metricUnit : '');
+      }
+
+      // 로그인한 코드의 시상금만 보여주고, 달성 여부가 미달성인 시상금은 표시하지 않음 (본인이라도 미달성이면 표시 안 함)
+      if (!statusObj.achieved) {
+        displayValue = "";
+      }
+
+      const displayName = rowName !== "" 
+        ? `${rowName} (${rowCode})` 
+        : rowCode;
+
+      tableRowsHtml += `
+        <tr class="highlight-row" style="background: rgba(243, 115, 33, 0.08); border-left: 3px solid var(--primary);">
+          <td style="padding: 10px; font-weight: 700;">${displayName} <span style="font-size:0.7rem; color:var(--primary); font-weight:700; margin-left:4px;">(나)</span></td>
+          <td style="padding: 10px; text-align: right; font-weight: 600;">${displayValue}</td>
+        </tr>
+      `;
+    });
+
+    container.innerHTML = `
+      <div class="achievement-status-board" style="font-family: var(--font-sans) !important;">
+        <div class="ranking-table-title" style="font-size: 0.875rem; font-weight: 800; margin-bottom: 10px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; padding: 0 4px;">
+          <i data-lucide="award" style="width: 14px; height: 14px; color: #FFD600;"></i> 개인별 실적 현황
+        </div>
+        
+        <div style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: #FFFFFF;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;">
+            <thead>
+              <tr style="background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;">
+                <th style="padding: 10px; font-weight: 700; color: var(--text-secondary); background: #F9FAFB;">대상자</th>
+                <th style="padding: 10px; font-weight: 700; color: var(--text-secondary); text-align: right; background: #F9FAFB;">${inc.valHeaderName || '실적'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    if (window.lucide) {
+      window.lucide.createIcons({ root: container });
+    }
   }
 
-    // Bind Save Simulation Button click event
-    const btnSaveSim = document.getElementById('btn-save-simulation');
-    if (btnSaveSim) {
-      btnSaveSim.addEventListener('click', () => {
-        if (!window.currentActiveIncentiveId) return;
-        const activeInc = window.INCENTIVE_DATABASE.incentives.find(i => i.id === window.currentActiveIncentiveId);
-        if (activeInc) {
-          activeInc.currentValue = window.temporarySimulationValue;
-          
-          const profile = window.INCENTIVE_DATABASE.agentProfile;
-          if (activeInc.metricType === 'premiums') {
-            profile.currentStats.premiums = window.temporarySimulationValue;
-          } else if (activeInc.metricType === 'contracts') {
-            profile.currentStats.contracts = window.temporarySimulationValue;
-          } else if (activeInc.metricType === 'recruit_tier') {
-            profile.currentStats.recruits = window.temporarySimulationValue;
-          } else if (activeInc.metricType === 'two_tier') {
-            profile.currentStats.two连续 = window.temporarySimulationValue;
-          } else if (activeInc.id === 'inc-004') {
-            profile.currentStats.two连续 = window.temporarySimulationValue;
-          } else if (activeInc.id === 'inc-005') {
-            profile.currentStats.points = window.temporarySimulationValue;
-          }
-          
-          updateUserRoleView();
-          if (typeof window.refreshApp === 'function') {
-            window.refreshApp();
-          }
-          
-          closeBottomSheet();
-          alert(`"${activeInc.title}" 시뮬레이션 조정 실적이 실제 실적으로 반영되어 대시보드와 진척도가 성공적으로 업데이트되었습니다!`);
-        }
-      });
-    }
 
   // --- Initial Page Bootstrapping ---
   function initApp() {
+    syncIncentiveValuesWithExcel();
     renderCalendar();
     renderWeeklyIssues();
     renderSummaryList();
@@ -1541,6 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Assign app refresh delegate to global context
   window.refreshApp = () => {
+    syncIncentiveValuesWithExcel();
     renderCalendar();
     renderSummaryList();
     renderSelectedDateEvents(selectedDate);
@@ -1559,6 +1502,30 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSummaryList();
     renderSelectedDateEvents(selectedDate);
   };
+
+  // Image Lightbox global functions (New Feature)
+  window.openImageLightbox = function(src) {
+    const lightbox = document.getElementById('image-lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    if (lightbox && lightboxImg) {
+      lightboxImg.src = src;
+      lightbox.style.display = 'flex';
+      setTimeout(() => {
+        lightboxImg.style.transform = 'scale(1)';
+      }, 10);
+    }
+  };
+
+  const lightbox = document.getElementById('image-lightbox');
+  if (lightbox) {
+    lightbox.addEventListener('click', () => {
+      const lightboxImg = document.getElementById('lightbox-img');
+      if (lightboxImg) lightboxImg.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        lightbox.style.display = 'none';
+      }, 150);
+    });
+  }
 
   // Run Startup sequence
   initApp();

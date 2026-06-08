@@ -10,10 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons (CDN) for premium visual cues -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- JSZip for dynamic client-side PPTX/document parsing and image extraction -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <!-- SheetJS for dynamic Excel parsing and performance statistics synchronization -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- JSZip and SheetJS (xlsx) are dynamically lazy-loaded when needed in analyzer_new.js -->
   <!-- App Custom Stylesheet -->
   <link rel="stylesheet" href="styles.css?v=9.0">
 </head>
@@ -33,12 +30,12 @@
       <div class="login-form">
         <div class="input-group">
           <label for="login-username"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> 코드</label>
-          <input type="text" id="login-username" value="112233" placeholder="코드를 입력하세요 (예: 112233)">
+          <input type="text" id="login-username" value="" placeholder="코드를 입력하세요">
         </div>
         
         <div class="input-group">
           <label for="login-password"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> 비밀번호</label>
-          <input type="password" id="login-password" value="112233" placeholder="비밀번호를 입력하세요">
+          <input type="password" id="login-password" value="" placeholder="비밀번호를 입력하세요">
         </div>
         
         <!-- Admin Login Checkbox Toggle -->
@@ -200,17 +197,7 @@
             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">한화손보 지점 전용 시상안 가속 판독기</div>
           </div>
 
-          <!-- 지점 실적 현황 Excel 연동 업로드 Section -->
-          <div class="drag-drop-zone xlsx-drop-zone" id="xlsx-drop-zone" style="position: relative; margin-top: 16px; border-color: rgba(0, 176, 255, 0.25); background: rgba(0, 176, 255, 0.02);">
-            <div class="scanning-bar" style="background: linear-gradient(to bottom, transparent, rgba(0, 176, 255, 0.2), transparent);"></div>
-            <input type="file" id="xlsx-input" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10;" accept=".xlsx, .xls">
-            <div class="upload-icon-box" style="background: rgba(0, 176, 255, 0.08); color: #00B0FF;">
-              <i data-lucide="file-spreadsheet"></i>
-            </div>
-            <h3 style="color: #00B0FF;">지점 실적 현황 Excel (.xlsx) 연동</h3>
-            <p>지점 FP 실적 현황 엑셀 파일을 드롭하거나 선택하여 실시간 대시보드 수치를 갱신하세요.</p>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">가동건수, 초회보험료, 도입 인원 자동 동기화</div>
-          </div>
+
 
           <!-- AI OCR Scanner Console / Loader (Premium visual wow effect) -->
           <div id="analyzer-loader" style="display: none; background: #FFFFFF; border: 1px solid var(--border); padding: 20px; border-radius: var(--radius-sm); margin-top: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); font-family: var(--font-sans);">
@@ -227,11 +214,20 @@
           <!-- Active Incentives Management Board (삭제 및 수정 기능 영역) -->
           <div class="glass-panel glass-panel--interactive" id="admin-active-incentives-manager" style="margin-top: 16px; border-color: rgba(243, 115, 33, 0.2);">
             <div class="panel-header" style="margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <h5 style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; color: var(--text-primary); margin: 0; font-family: var(--font-sans) !important;">
+              <h5 style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; color: var(--text-primary); margin: 0; font-family: var(--font-sans) !important; flex-wrap: wrap;">
                 <i data-lucide="settings" class="color-primary icon-sm" style="color: var(--primary);"></i>
-                등록 완료된 시상안 편집 및 삭제
+                <span>등록 완료된 시상안 편집 및 삭제</span>
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.775rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; margin-left: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0,0,0,0.02); user-select: none;" id="lbl-select-all-inc">
+                  <input type="checkbox" id="chk-select-all-inc" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--primary);">
+                  전체 선택
+                </label>
               </h5>
-              <span id="active-incentives-count" style="font-size: 0.775rem; color: var(--primary); background: rgba(243, 115, 33, 0.1); padding: 3px 10px; border-radius: 20px; font-weight: 700; border: 1px solid rgba(243, 115, 33, 0.2);">총 0개 시상</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="btn btn-secondary" id="btn-bulk-delete-inc" style="padding: 5px 12px; font-size: 0.75rem; color: var(--accent-danger); border-color: rgba(255, 23, 68, 0.2); background: rgba(255, 23, 68, 0.02); display: none; align-items: center; gap: 4px; border-radius: 8px; font-family: var(--font-sans);" onmouseover="this.style.background='rgba(255, 23, 68, 0.1)'" onmouseout="this.style.background='rgba(255, 23, 68, 0.02)'">
+                  <i data-lucide="trash-2" style="width: 12px; height: 12px; color: var(--accent-danger);"></i> 선택 삭제
+                </button>
+                <span id="active-incentives-count" style="font-size: 0.775rem; color: var(--primary); background: rgba(243, 115, 33, 0.1); padding: 3px 10px; border-radius: 20px; font-weight: 700; border: 1px solid rgba(243, 115, 33, 0.2); font-family: var(--font-sans);">총 0개 시상</span>
+              </div>
             </div>
             
             <div id="admin-incentives-list-wrapper" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
@@ -252,7 +248,7 @@
             </div>
             
             <div class="parsed-actions-bar" style="display: flex; justify-content: flex-end; gap: 12px;">
-              <button class="btn btn-secondary" id="btn-discard-parsed" style="padding: 10px 20px;">재시도</button>
+              <button class="btn btn-secondary" id="btn-discard-parsed" style="padding: 10px 20px;">삭제</button>
               <button class="btn btn-primary" id="btn-commit-parsed" style="padding: 10px 24px;">캘린더 등록 및 FP 공지</button>
             </div>
           </div>
@@ -263,46 +259,23 @@
       <!-- ==========================================
            3. DASHBOARD BOTTOM GRID (BELOW CALENDAR)
            ========================================== -->
-      <div class="dashboard-bottom-grid">
+      <div class="dashboard-bottom-grid" style="grid-template-columns: 1fr !important;">
         
 
         <!-- Column 2: Incentives Summary List -->
         <div class="incentives-summary glass-panel glass-panel--interactive">
-          <div class="panel-header" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+          <div class="panel-header" style="margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <i data-lucide="award" class="color-primary"></i>
-              <h3 style="font-size: 1.1rem; font-weight: 700;">주요 시상 종합 진척도</h3>
+              <h3 id="summary-list-title" style="font-size: 1.1rem; font-weight: 700;">주요 시상 종합 진척도</h3>
+            </div>
+            <div class="summary-nav-buttons" style="display: flex; align-items: center; gap: 8px;">
+              <button class="calendar-nav-btn" id="btn-prev-summary-month" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-primary); display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i></button>
+              <button class="calendar-nav-btn" id="btn-next-summary-month" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-primary); display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></button>
             </div>
           </div>
           <div class="summary-list-container" id="summary-list-wrapper" style="display: flex; flex-direction: column; gap: 12px; max-height: 290px; overflow-y: auto;">
             <!-- Populated dynamically -->
-          </div>
-        </div>
-
-        <!-- Column 3: Welcome Card & Quick Stats Summary -->
-        <div class="welcome-card glass-panel glass-panel--interactive" style="display: flex; flex-direction: column; justify-content: space-between;">
-          <div class="welcome-header">
-            <h3 style="font-size: 1.1rem; font-weight: 700;">오늘의 지점 실적 요약</h3>
-            <p class="date-today" id="current-full-date" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">2026년 5월 30일 (토)</p>
-          </div>
-          
-          <div class="quick-overview-stats" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px; margin-bottom: 16px;">
-            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.825rem; color: var(--text-secondary);">장기보장 가동건수</span>
-              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-contracts" class="color-primary">3</span>건</span>
-            </div>
-            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.825rem; color: var(--text-secondary);">장기 초회보험료</span>
-              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-premiums" class="color-primary">180,000</span>원</span>
-            </div>
-            <div class="stat-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.825rem; color: var(--text-secondary);">당월 도입 가동</span>
-              <span style="font-weight: 700; font-size: 1rem;"><span id="quick-stat-recruits" class="color-primary">1</span>명</span>
-            </div>
-          </div>
-          
-          <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border); padding-top: 8px;">
-            실시간 실적 자동 집계 시스템
           </div>
         </div>
 
@@ -330,6 +303,9 @@
         
         <!-- Content Scroll Area -->
         <div class="sheet-body-scroll" style="max-height: 380px; overflow-y: auto; margin-bottom: 8px;">
+          
+          <!-- Image Attachment Area (New feature) -->
+          <div id="detail-incentive-image-container" style="display: none; margin: 8px 0 16px 0; text-align: center;"></div>
           
           <h2 class="bottom-sheet-title" id="detail-incentive-title" style="font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; display: none;">5월 4주차 장기보장성 신계약 건수 시상</h2>
           
@@ -360,9 +336,9 @@
   </div>
 
   <!-- Load Scripts -->
-  <script src="data.js?v=9.0"></script>
-  <script src="analyzer_new.js?v=9.0"></script>
-  <script src="app.js?v=9.0"></script>
+  <script src="data.js?v=14.0"></script>
+  <script src="analyzer_new.js?v=14.0"></script>
+  <script src="app.js?v=14.0"></script>
   
   <!-- Sidebar Navigation Sync Script (Resolves visual routing triggers) -->
   <script>
@@ -417,5 +393,12 @@
       // Username and branch state display are synced and managed centrally by app.js on login/logout
     });
   </script>
+  
+  <!-- Image Lightbox Overlay (Popup view) -->
+  <div id="image-lightbox" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out;">
+    <img id="lightbox-img" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: scale(0.95); transition: transform 0.2s ease-out;">
+    <button style="position: absolute; top: 20px; right: 20px; background: transparent; border: none; color: #FFFFFF; font-size: 2.25rem; font-weight: 300; cursor: pointer; line-height: 1;" title="닫기">&times;</button>
+  </div>
+  <input type="file" id="inc-xlsx-upload-input" accept=".xlsx, .xls" style="display: none;">
 </body>
 </html>

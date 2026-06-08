@@ -123,7 +123,8 @@ window.INCENTIVE_DATABASE = {
 
   // 3. 임의의 로그인 설계사 프로필 데이터 (현재 달성 현황 및 시뮬레이션을 위함)
   agentProfile: {
-    name: "김한화",
+    code: "112233",
+    name: "김철수",
     role: "fp", // 'fp' (FP) or 'bm' (지점장 / 관리자)
     branch: "팔용지점",
     currentStats: {
@@ -136,3 +137,88 @@ window.INCENTIVE_DATABASE = {
     }
   }
 };
+
+// --- IndexedDB Storage Engine for Large Data / Slides ---
+(function() {
+  const DB_NAME = 'HanwhaIncentivesDB';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'settings';
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        reject(new Error("IndexedDB not supported"));
+        return;
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = (e) => resolve(e.target.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  window.dbGet = function(key) {
+    return openDB()
+      .then(db => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.get(key);
+          request.onsuccess = () => {
+            // Fallback to localStorage if not found in IndexedDB (for backward compatibility during migration)
+            if (request.result === undefined) {
+              const localVal = localStorage.getItem(key);
+              if (localVal) {
+                try {
+                  const parsed = JSON.parse(localVal);
+                  // Migrate it to IndexedDB
+                  window.dbSet(key, parsed).catch(console.error);
+                  resolve(parsed);
+                  return;
+                } catch (err) {}
+              }
+            }
+            resolve(request.result);
+          };
+          request.onerror = (e) => reject(e.target.error);
+        });
+      })
+      .catch(err => {
+        console.warn("IndexedDB get failed, falling back to LocalStorage:", err);
+        const localVal = localStorage.getItem(key);
+        if (localVal) {
+          try {
+            return JSON.parse(localVal);
+          } catch (e) {}
+        }
+        return undefined;
+      });
+  };
+
+  window.dbSet = function(key, value) {
+    return openDB()
+      .then(db => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.put(value, key);
+          request.onsuccess = () => resolve();
+          request.onerror = (e) => reject(e.target.error);
+        });
+      })
+      .catch(err => {
+        console.warn("IndexedDB set failed, falling back to LocalStorage:", err);
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.error("LocalStorage fallback failed too:", e);
+          throw e;
+        }
+      });
+  };
+})();

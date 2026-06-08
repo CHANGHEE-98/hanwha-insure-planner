@@ -7,17 +7,70 @@
   window.currentSlideCount = 0;
   window.currentDiscardedCount = 0;
 
-  // DOM Selection
-  const fileDropZone = document.getElementById('file-drop-zone');
-  const fileInput = document.getElementById('file-input');
-  const consoleLogsContainer = document.getElementById('console-logs-container');
-  const analyzerLoader = document.getElementById('analyzer-loader');
-  const loaderProgressFill = document.getElementById('loader-progress-fill-bar');
-  const loaderText = document.getElementById('analyzer-loader-text');
-  const parsedResultsPanel = document.getElementById('parsed-results-panel');
-  const parsedResultCardData = document.getElementById('parsed-result-card-data');
-  const btnDiscardParsed = document.getElementById('btn-discard-parsed');
-  const btnCommitParsed = document.getElementById('btn-commit-parsed');
+  // Dynamic library loader helper
+  function loadLibrary(url, globalVarName) {
+    return new Promise((resolve, reject) => {
+      if (window[globalVarName]) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = url;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  // Image compression utility returning Promise of Base64 DataURL
+  function getCompressedBase64(file) {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve("");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const maxVal = 600;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxVal) {
+              height *= maxVal / width;
+              width = maxVal;
+            }
+          } else {
+            if (height > maxVal) {
+              width *= maxVal / height;
+              height = maxVal;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.5));
+        };
+        img.onerror = () => resolve("");
+        img.src = evt.target.result;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // DOM Selection variables (assigned on DOMContentLoaded to guarantee non-null values)
+  let fileDropZone = null;
+  let fileInput = null;
+  let consoleLogsContainer = null;
+  let analyzerLoader = null;
+  let loaderProgressFill = null;
+  let loaderText = null;
+  let parsedResultsPanel = null;
+  let parsedResultCardData = null;
 
   // Helper: typewriter text addition in terminal style
   async function typeLogLine(message, type = '') {
@@ -140,7 +193,8 @@
       const unitSelect = rows[0].querySelector('.crit-target-unit');
       const rewardInput = rows[0].querySelector('.crit-reward');
 
-      obj.targetValue = parseInt(targetInput.value, 10) || 0;
+      const isCustom = unitSelect.value === '직접입력';
+      obj.targetValue = isCustom ? targetInput.value.trim() : (parseInt(targetInput.value, 10) || 0);
       obj.metricUnit = unitSelect.value;
       obj.reward = rewardInput.value.trim();
       delete obj.milestones;
@@ -151,11 +205,13 @@
         const unitSelect = row.querySelector('.crit-target-unit');
         const rewardInput = row.querySelector('.crit-reward');
 
-        const targetVal = parseInt(targetInput.value, 10) || 0;
+        const isCustom = unitSelect.value === '직접입력';
+        const targetVal = isCustom ? targetInput.value.trim() : (parseInt(targetInput.value, 10) || 0);
         const unit = unitSelect.value;
         const rewardText = rewardInput.value.trim();
 
-        let tierName = `${idx + 1}차 기준 (${targetVal.toLocaleString()}${unit})`;
+        let displayVal = isCustom ? targetVal : targetVal.toLocaleString();
+        let tierName = `${idx + 1}차 기준 (${displayVal}${unit})`;
         milestones.push({
           name: tierName,
           value: targetVal,
@@ -184,16 +240,18 @@
 
     // Helper to generate a single criteria row HTML
     function createCriteriaRowHtml(targetVal, unit, rewardText) {
+      const inputType = (unit === '직접입력') ? 'text' : 'number';
       return `
         <div class="criteria-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(255,255,255,0.01); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-xs);">
           <span style="font-size: 0.85rem; font-weight: 600; min-width: 65px; color: var(--text-secondary);">시상 기준:</span>
-          <input type="number" class="admin-edit-input crit-target" value="${targetVal}" style="max-width: 120px; padding: 6px 10px !important;">
+          <input type="${inputType}" class="admin-edit-input crit-target" value="${targetVal}" style="max-width: 120px; padding: 6px 10px !important;">
           <select class="admin-edit-select crit-target-unit" style="max-width: 80px; padding: 6px 10px !important;">
             <option value="원" ${unit === '원' ? 'selected' : ''}>원</option>
             <option value="%" ${unit === '%' ? 'selected' : ''}>%</option>
             <option value="건" ${unit === '건' ? 'selected' : ''}>건</option>
             <option value="주" ${unit === '주' ? 'selected' : ''}>주</option>
             <option value="명" ${unit === '명' ? 'selected' : ''}>명</option>
+            <option value="직접입력" ${unit === '직접입력' ? 'selected' : ''}>직접입력</option>
           </select>
           <span style="font-size: 0.85rem; color: var(--text-secondary);">이상 달성시 ➡️ 시상</span>
           <input type="text" class="admin-edit-input crit-reward" value="${rewardText}" style="max-width: 220px; padding: 6px 10px !important;" placeholder="시상 혜택 입력">
@@ -204,8 +262,8 @@
       `;
     }
 
-    // Helper to bind row delete events
-    function bindRowDeleteEvent(rowEl) {
+    // Helper to bind row events (Delete & Unit select changes input type)
+    function bindCriteriaRowEvents(rowEl) {
       const btnDel = rowEl.querySelector('.btn-delete-row');
       if (btnDel) {
         btnDel.addEventListener('click', () => {
@@ -214,6 +272,18 @@
             rowEl.remove();
           } else {
             alert('최소 1개 이상의 시상 기준은 유지해야 합니다.');
+          }
+        });
+      }
+
+      const unitSelect = rowEl.querySelector('.crit-target-unit');
+      const targetInput = rowEl.querySelector('.crit-target');
+      if (unitSelect && targetInput) {
+        unitSelect.addEventListener('change', (e) => {
+          if (e.target.value === '직접입력') {
+            targetInput.type = 'text';
+          } else {
+            targetInput.type = 'number';
           }
         });
       }
@@ -323,6 +393,22 @@
           </div>
         </div>
 
+        <div class="info-row" style="margin-bottom: 20px; font-family: var(--font-sans) !important;">
+          <span class="info-label">시상안 관련 이미지 첨부</span>
+          <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap;">
+            <input type="file" id="edit-incentive-image-file" accept="image/*" style="display: none;">
+            <button class="btn btn-secondary" id="btn-trigger-image-file" style="padding: 6px 14px; font-size: 0.8rem; gap: 6px; display: inline-flex; align-items: center; border-color: rgba(243, 115, 33, 0.2); background: rgba(243, 115, 33, 0.02); color: var(--primary);">
+              <i data-lucide="image" style="width: 14px; height: 14px;"></i> 이미지 등록
+            </button>
+            <span id="edit-incentive-image-filename" style="font-size: 0.775rem; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${obj.slideImage ? "기존 등록된 이미지 있음" : "선택된 파일 없음"}
+            </span>
+            <div id="edit-incentive-image-preview-container" style="display: ${obj.slideImage ? 'block' : 'none'}; border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 4px; background: rgba(0,0,0,0.03);">
+              <img id="edit-incentive-image-preview" src="${obj.slideImage || ''}" style="max-height: 40px; border-radius: 4px; cursor: pointer;" title="클릭 시 크게 보기">
+            </div>
+          </div>
+        </div>
+
 
 
         <div class="info-row">
@@ -408,7 +494,7 @@
         const newRowEl = tempDiv.firstChild;
         rowsContainer.appendChild(newRowEl);
         
-        bindRowDeleteEvent(newRowEl);
+        bindCriteriaRowEvents(newRowEl);
         if (window.lucide) window.lucide.createIcons();
       });
     }
@@ -416,7 +502,43 @@
     // Bind initial deletes
     if (rowsContainer) {
       rowsContainer.querySelectorAll('.criteria-row').forEach(row => {
-        bindRowDeleteEvent(row);
+        bindCriteriaRowEvents(row);
+      });
+    }
+
+    // Bind Image Attachment Actions (New Feature)
+    const imgTrigger = document.getElementById('btn-trigger-image-file');
+    const imgFileInput = document.getElementById('edit-incentive-image-file');
+    const imgFilename = document.getElementById('edit-incentive-image-filename');
+    const imgPreviewContainer = document.getElementById('edit-incentive-image-preview-container');
+    const imgPreview = document.getElementById('edit-incentive-image-preview');
+
+    if (imgTrigger && imgFileInput) {
+      imgTrigger.addEventListener('click', () => {
+        imgFileInput.click();
+      });
+    }
+
+    if (imgFileInput) {
+      imgFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const compressed = await getCompressedBase64(file);
+          if (compressed) {
+            obj.slideImage = compressed; // Update object state
+            if (imgFilename) imgFilename.textContent = file.name;
+            if (imgPreview) imgPreview.src = compressed;
+            if (imgPreviewContainer) imgPreviewContainer.style.display = 'block';
+          }
+        }
+      });
+    }
+
+    if (imgPreview) {
+      imgPreview.addEventListener('click', () => {
+        if (obj.slideImage && typeof window.openImageLightbox === 'function') {
+          window.openImageLightbox(obj.slideImage);
+        }
       });
     }
 
@@ -433,40 +555,7 @@
     }, false);
   });
 
-  if (fileInput && fileDropZone) {
-    // Native file input change
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleCustomFiles(e.target.files);
-        fileInput.value = '';
-      }
-    });
-
-    // Drag highlights
-    fileInput.addEventListener('dragenter', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileDropZone.classList.add('dragover');
-    });
-    fileInput.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileDropZone.classList.add('dragover');
-    });
-    fileInput.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileDropZone.classList.remove('dragover');
-    });
-    fileInput.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileDropZone.classList.remove('dragover');
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        handleCustomFiles(e.dataTransfer.files);
-      }
-    });
-  }
+  // File input and drag-drop events are now bound inside DOMContentLoaded to ensure elements exist
 
   // File handling router
   function handleCustomFiles(files) {
@@ -475,300 +564,427 @@
     handleNonImageFile(file);
   }
 
+  // Helper: PPTX slide text analysis parser (인식률 극대화 룰 베이스 알고리즘)
+  function extractIncentiveFromTexts(texts, slideNum, year, month, fileName, imageUrl) {
+    const combinedText = texts.join(' ');
+    
+    // 1. 시상 제목 결정: 좌측 상단의 PPT 제목(texts[0])을 최우선적으로 기본 반영
+    let title = "";
+    if (texts.length > 0) {
+      title = texts[0].replace(/^[◎\s•\-*\d차\[\]\(\)\s]+/, '').trim();
+      
+      // 만약 첫 텍스트가 너무 짧거나 본문 타이틀이 아닌 무의미한 텍스트일 때
+      if (title.length < 3 || title.includes('+') || title.includes('대상') || title.includes('기간')) {
+        const bestCandidate = texts.find(t => t.includes('프로모션') || t.includes('시상') || t.includes('시책') || t.includes('RICH'));
+        if (bestCandidate) {
+          title = bestCandidate.replace(/^[◎\s•\-*\d차\[\]\(\)\s]+/, '').trim();
+        } else {
+          const baseName = fileName.replace(/\.[^/.]+$/, "");
+          title = `${baseName} - ${slideNum}번 시상안`;
+        }
+      }
+    } else {
+      title = `${month + 1}월 ${slideNum}차 특별 프로모션`;
+    }
+
+    // 2. 시상 기간 파싱 ('기간' 또는 '기 간' 뒤의 날짜 추출)
+    let startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    let endDate = `${year}-${String(month + 1).padStart(2, '0')}-15`; // 기본 15일
+
+    const periodRegex = /(?:기\s*간)\s*[:\s]*([^\n\r]+)/i;
+    const periodMatch = combinedText.match(periodRegex);
+    if (periodMatch) {
+      const dateText = periodMatch[1].trim();
+      const daysMatch = dateText.match(/(\d+)월\s*(\d+)일?\s*~\s*(?:(\d+)월\s*)?(\d+)일?/);
+      if (daysMatch) {
+        const startM = parseInt(daysMatch[1], 10);
+        const startD = parseInt(daysMatch[2], 10);
+        const endM = daysMatch[3] ? parseInt(daysMatch[3], 10) : startM;
+        const endD = parseInt(daysMatch[4], 10);
+        
+        startDate = `${year}-${String(startM).padStart(2, '0')}-${String(startD).padStart(2, '0')}`;
+        endDate = `${year}-${String(endM).padStart(2, '0')}-${String(endD).padStart(2, '0')}`;
+      } else {
+        const simpleDaysMatch = dateText.match(/(\d+)월?\s*(\d+)일?\s*~\s*(\d+)일?/);
+        if (simpleDaysMatch) {
+          const parsedM = dateText.includes('월') ? parseInt(dateText.match(/(\d+)월/)[1], 10) : (month + 1);
+          const startD = parseInt(simpleDaysMatch[2], 10);
+          const endD = parseInt(simpleDaysMatch[3], 10);
+          
+          startDate = `${year}-${String(parsedM).padStart(2, '0')}-${String(startD).padStart(2, '0')}`;
+          endDate = `${year}-${String(parsedM).padStart(2, '0')}-${String(endD).padStart(2, '0')}`;
+        }
+      }
+    }
+
+    // 3. 카테고리 판별
+    let category = "long_auto";
+    if (combinedText.includes("도입") || combinedText.includes("리쿠르팅") || combinedText.includes("육성")) {
+      category = "recruitment";
+    } else if (combinedText.includes("2W") || combinedText.includes("연속 가동") || combinedText.includes("연도대상")) {
+      category = "two_annual";
+    }
+
+    // 4. 표(Table) 인식 및 시상 기준(Milestones) 자동 추출
+    const amountRegex = /(\d+)\s*만\s*원[↑\s]*/g;
+    const rateRegex = /(\d+)\s*%/g;
+
+    const amounts = [];
+    let match;
+    while ((match = amountRegex.exec(combinedText)) !== null) {
+      amounts.push(parseInt(match[1], 10) * 10000);
+    }
+    
+    const rates = [];
+    while ((match = rateRegex.exec(combinedText)) !== null) {
+      rates.push(match[1] + '%');
+    }
+
+    let milestones = null;
+    let targetValue = 200000;
+    let reward = "매출 장려금 지급";
+    
+    if (amounts.length > 0 && rates.length > 0) {
+      milestones = [];
+      const len = Math.min(amounts.length, rates.length);
+      for (let k = 0; k < len; k++) {
+        milestones.push({
+          name: `월납 ${(amounts[k]/10000).toLocaleString()}만원↑ 달성`,
+          value: amounts[k],
+          reward: `월납 ${rates[k]} 시상금 지급`
+        });
+      }
+      milestones.sort((a, b) => a.value - b.value);
+      targetValue = milestones[0].value;
+      reward = milestones[0].reward;
+    } else {
+      const targetMatch = combinedText.match(/(\d+)\s*만\s*원\s*이상/);
+      if (targetMatch) {
+        targetValue = parseInt(targetMatch[1], 10) * 10000;
+      }
+      const rewardMatch = combinedText.match(/(?:지급|시상금|사은품)\s*([^\s]+)/);
+      if (rewardMatch) {
+        reward = rewardMatch[1];
+      }
+    }
+
+    const metricType = category === "recruitment" ? "recruit_tier" : (category === "two_annual" ? "two_tier" : "premiums");
+    const metricUnit = category === "recruitment" ? "명" : (category === "two_annual" ? "주" : "원");
+
+    return {
+      id: `inc-pptx-${slideNum}-${Date.now()}`,
+      title: title,
+      category: category,
+      startDate: startDate,
+      endDate: endDate,
+      metricType: metricType,
+      metricUnit: metricUnit,
+      targetValue: targetValue,
+      currentValue: 0,
+      reward: reward,
+      milestones: milestones,
+      description: combinedText.length > 100 ? combinedText.substring(0, 97) + '...' : combinedText,
+      weeklyIssue: combinedText.includes("유의") || combinedText.includes("제외") ? "청약 진행 시 승환계약 및 유의사항 기준 준수" : "당주 프로모션 가동 전략 수립 및 가망 고객 제안 집중",
+      direction: "고객별 최적 플랜 설계서 모바일 발송 및 활동 가동 관리",
+      slideImage: imageUrl
+    };
+  }
+
   // Helper to handle PDF/PPTX/Image document scan simulators
   async function handleNonImageFile(file) {
     const fileName = file.name;
+    const isPptx = fileName.toLowerCase().endsWith('.pptx') || fileName.toLowerCase().endsWith('.ppt');
+    const isPdf = fileName.toLowerCase().endsWith('.pdf');
+
     let year = 2026;
     if (fileName.includes('25') || fileName.includes('2025')) year = 2025;
+    else if (fileName.includes('24') || fileName.includes('2024')) year = 2024;
 
     let month = 4; // default May (0-indexed)
-    if (fileName.includes('9월') || fileName.includes('_9_') || fileName.startsWith('9_') || fileName.includes(' 9월')) {
-      month = 8; // September
-    } else if (fileName.includes('6월')) {
-      month = 5; // June
-    } else if (fileName.includes('5월')) {
-      month = 4; // May
+    const monthMatch = fileName.match(/(\d+)월/);
+    if (monthMatch) {
+      month = parseInt(monthMatch[1], 10) - 1;
+    } else {
+      if (fileName.includes('_9_') || fileName.startsWith('9_') || fileName.includes(' 9월')) month = 8;
+      else if (fileName.includes('6월')) month = 5;
+      else if (fileName.includes('5월')) month = 4;
+      else if (fileName.includes('2월')) month = 1;
     }
 
-    // Set uploadedImageUrl if it is a real image file
     let uploadedImageUrl = "";
     if (file && file.type && file.type.startsWith('image/')) {
-      uploadedImageUrl = URL.createObjectURL(file);
+      uploadedImageUrl = await getCompressedBase64(file);
     }
 
     const monthStr = String(month + 1).padStart(2, '0');
     let parsedObjects = [];
-    let slideData = null;
+    let slideData = { totalSlides: 1, discardedSlides: 0, slideResults: [] };
 
-    if (month === 8) {
-      // September slides deck simulation
-      slideData = {
-        totalSlides: 14,
-        discardedSlides: 4,
-        slideResults: [
-          { isDiscarded: true, content: "9월 창원지역단 및 영남지역본부 프로모션 전사 공지 개요" },
-          { isDiscarded: false, content: "리치 프로모션 - RICH 간병보험 건당 20만원이상 매출시상" },
-          { isDiscarded: false, content: "9월 팀장 활동비 지원 프로모션 - RICH 간병보험 누계 시상" },
-          { isDiscarded: false, content: "9월 개시차! 추석 감사 프로모션 - LA갈비 선물 SET 지급" },
-          { isDiscarded: false, content: "전략상품 판매 활성화 「3·6·9」 프로모션 - 여성/간편/종합/자녀" },
-          { isDiscarded: false, content: "가을맞이 「신규고객발굴」 프로모션 - 여행용 파우치 지급" },
-          { isDiscarded: false, content: "9월 창원지역단 장기보장성 매출 극대화 프로모션" },
-          { isDiscarded: false, content: "9월 2W 가동 주차별 마감 시상 규칙" },
-          { isDiscarded: false, content: "창원지역단 도입 챔피언 리쿠르팅 시상" },
-          { isDiscarded: false, content: "영남지역본부 우수 지점 도입 육성 프로모션" },
-          { isDiscarded: false, content: "9월 특별 종합 대내외 시상 - 추석 감사 한우 패키지" },
-          { isDiscarded: true, content: "지점 공지용 청약 유의사항 및 승환계약 제외 기준 안내" },
-          { isDiscarded: true, content: "영업 포탈 등록 프로세스 안내" },
-          { isDiscarded: true, content: "Q&A 및 지점장 격려 공지" }
-        ]
-      };
-      parsedObjects = [
-        {
-          id: `inc-rich-promo-${Date.now()}`,
-          title: "9월 창원지역단 리치 프로모션",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-05`,
-          metricType: "premiums",
-          metricUnit: "원",
-          targetValue: 200000,
-          currentValue: 0,
-          reward: "매출 시상 보너스 제공",
-          description: "RICH 간병보험 건당 20만 원 이상 매출 시 10년납 최대 300% 지급 프로모션",
-          weeklyIssue: "RICH 간병보험 신규 가입 혜택 홍보 집중",
-          direction: "10년납 가입 희망 고객 대상 300% 비례 매출 보너스 소구 플랜 전달",
-          colorOverride: "blue",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-team-activity-${Date.now()}`,
-          title: "9월 팀장 활동비 지원 프로모션",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-05`,
-          metricType: "premiums",
-          metricUnit: "원",
-          currentValue: 0,
-          reward: "팀장 활동비 지원금 지급",
-          description: "RICH 간병보험 월납보험료 팀 누계 달성 시 등급별 팀장 활동 지원금 시상",
-          weeklyIssue: "지점 내 팀원 단합 및 간병보험 청약 활성화 기간",
-          direction: "팀 누계 목표 50만 원/100만 원 달성을 위한 팀원별 청약 진척 관리",
-          milestones: [
-            { name: "팀 누계 50만 원 달성", value: 500000, reward: "시상 150,000원" },
-            { name: "팀 누계 100만 원 달성", value: 1000000, reward: "시상 300,000원" }
-          ],
-          colorOverride: "orange",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-chuseok-beef-${Date.now()}`,
-          title: "9월 개시차! 추석 감사 프로모션",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-12`,
-          metricType: "premiums",
-          metricUnit: "원",
-          targetValue: 100000,
-          currentValue: 0,
-          reward: "LA갈비 선물 SET 1.8kg 증정",
-          description: "창원지역단 FP 대상 보장성보험 합산보험료 10만 원 이상 달성 시 추석 명절 갈비 선물세트 지급",
-          weeklyIssue: "추석 명절 전 조기 청약 독려 및 명절 마케팅 전략",
-          direction: "가족 및 친지 대상 보장 분석 서비스 제안 및 간편 가입 설계 유도",
-          colorOverride: "gold",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-strategy-369-${Date.now()}`,
-          title: "전략상품 판매 활성화 「3·6·9」 프로모션",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-14`,
-          metricType: "contracts",
-          metricUnit: "건",
-          currentValue: 0,
-          reward: "전략상품 건별 장려금 지급",
-          description: "여성/간편(SI)/종합/자녀 등 4대 전략상품 판매 건수에 따른 특별 누적 매출 시상",
-          weeklyIssue: "4대 전략 상품 판매 건수 증대 및 점유율 가속화",
-          direction: "3건 / 6건 / 9건 구간 돌파를 위한 가망 고객별 맞춤형 상품 맞춤 제안서 발송",
-          milestones: [
-            { name: "전략상품 3건↑ 달성", value: 3, reward: "시상 100,000원" },
-            { name: "전략상품 6건↑ 달성", value: 6, reward: "시상 150,000원" },
-            { name: "전략상품 9건↑ 달성", value: 9, reward: "시상 250,000원" }
-          ],
-          colorOverride: "blue",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-autumn-pouch-${Date.now()}`,
-          title: "가을맞이 「신규고객발굴」 프로모션",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-30`,
-          metricType: "contracts",
-          metricUnit: "건",
-          targetValue: 1,
-          currentValue: 0,
-          reward: "여행용 파우치 지급 (5천원 상당)",
-          description: "신규 고객 발굴 및 여행자보험 가입 활성화를 위한 가을 시즌 한정 특별 판촉 기프트 제공",
-          weeklyIssue: "가을 행락철 여행자보험 단체 가입 유도 마케팅 활성화",
-          direction: "야외 모임이나 가을 단체 여행 리스트 발굴을 통한 가벼운 접촉 및 파우치 사은품 안내",
-          colorOverride: "green",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-changwon-max-${Date.now()}`,
-          title: "9월 창원지역단 장기보장성 매출 극대화 시상",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-15`,
-          metricType: "premiums",
-          metricUnit: "원",
-          currentValue: 0,
-          reward: "매출 장려금 추가 지급",
-          description: "창원지역단 소속 설계사들의 장기 보장성 누적 초회보험료 구간별 특별 특별 인센티브 매칭",
-          weeklyIssue: "당월 매출 목표 조기 완수 및 지점 랭킹 상승 전략",
-          direction: "우량 가망고객의 집중 클로징 및 간편 보장 한도 소구 화법 적용 제안",
-          milestones: [
-            { name: "초회보험료 30만 원 달성", value: 300000, reward: "시상 100,000원" },
-            { name: "초회보험료 50만 원 달성", value: 500000, reward: "시상 200,000원" },
-            { name: "초회보험료 100만 원 달성", value: 1000000, reward: "시상 400,000원" }
-          ],
-          colorOverride: "blue",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-two-sept-${Date.now()}`,
-          title: "9월 2W 가동 주차별 마감 시상",
-          category: "two_annual",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-30`,
-          metricType: "two_tier",
-          metricUnit: "주",
-          currentValue: 0,
-          reward: "2W 주간 가동 보너스 지급",
-          description: "9월 매주 가동 설계사들의 활동성 보강을 위한 주차별 연속 가동 격려금 프로모션",
-          weeklyIssue: "매주 누락 없는 계약 가동 흐름 유지 관리",
-          direction: "소액 화재보험이나 주택 보장 플랜을 활용해 1건 이상 가동 완료 관리",
-          milestones: [
-            { name: "1주차 가동 달성", value: 1, reward: "시상 20,000원" },
-            { name: "2주차 연속 달성", value: 2, reward: "시상 50,000원" },
-            { name: "3주차 연속 달성", value: 3, reward: "시상 100,000원" },
-            { name: "4주차 연속 달성", value: 4, reward: "시상 200,000원" }
-          ],
-          colorOverride: "gold",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-recruit-champ-${Date.now()}`,
-          title: "창원지역단 도입 챔피언 프로모션",
-          category: "recruitment",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-30`,
-          metricType: "recruit_tier",
-          metricUnit: "명",
-          currentValue: 0,
-          reward: "도입 성공 장려금 대폭 지급",
-          description: "창원지역단 소속 FP 동료 설계사 도입 시 정착 지원금 및 소개 리쿠르팅 수당 획기적 매칭",
-          weeklyIssue: "지점 정예 조직 육성 및 도입 활성화 분위기 정착",
-          direction: "설명회 동반 참석 기획 및 후보자 리스트 of 지점장 집중 상담 클로징 매칭",
-          milestones: [
-            { name: "도입 1명 달성", value: 1, reward: "시상 500,000원" },
-            { name: "도입 2명 달성", value: 2, reward: "시상 1,200,000원" },
-            { name: "도입 3명 달성", value: 3, reward: "시상 2,500,000원" }
-          ],
-          colorOverride: "green",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-bm-recruit-bonus-${Date.now()}`,
-          title: "영남지역본부 우수 지점 도입 육성 프로모션",
-          category: "recruitment",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-30`,
-          metricType: "recruit_tier",
-          metricUnit: "명",
-          currentValue: 0,
-          reward: "지점 육성 격려금 매칭",
-          description: "영남지역본부 소속 지점들의 조직 증대를 독려하기 위한 지점 단위 누적 도입 프로모션",
-          weeklyIssue: "하반기 지점 신규 인력 가용 극대화 및 지점 볼륨업",
-          direction: "지점 설명회 가동율 극대화 및 동반 참석 FP 대상 미니 세미나 매주 기획 실행",
-          milestones: [
-            { name: "지점 총 도입 3명 달성", value: 3, reward: "시상 1,500,000원" },
-            { name: "지점 총 도입 5명 달성", value: 5, reward: "시상 3,500,000원" }
-          ],
-          colorOverride: "green",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-sept-special-beef-${Date.now()}`,
-          title: "9월 특별 종합 대내외 시상 (추석 한우 세트)",
-          category: "long_auto",
-          startDate: `${year}-09-01`,
-          endDate: `${year}-09-15`,
-          metricType: "premiums",
-          metricUnit: "원",
-          targetValue: 1000000,
-          currentValue: 0,
-          reward: "추석 명절 한우 갈비 세트 증정",
-          description: "9월 전사 프로모션 연동 누적 장기 초회보험료 100만 원 돌파 시 프리미엄 명절 한우세트 증정",
-          weeklyIssue: "명절 전 고액 보장 청약 유량 확보 전략",
-          direction: "우량 가망 리스트 집중 제안 및 종합 보장 플랜의 당월 청약 연계",
-          colorOverride: "purple",
-          slideImage: uploadedImageUrl
+    // --- 1. PPTX 파일인 경우: JSZip을 활용해 실제 XML 텍스트 파싱 및 OCR 시뮬레이션 고도화 ---
+    if (isPptx) {
+      try {
+        await loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+      } catch (err) {
+        console.error("Failed to load JSZip: ", err);
+        alert("PPTX 분석 라이브러리(JSZip)를 로드할 수 없습니다.");
+        return;
+      }
+      try {
+        const zip = await window.JSZip.loadAsync(file);
+        const slideFiles = Object.keys(zip.files).filter(name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml'));
+        
+        slideFiles.sort((a, b) => {
+          const numA = parseInt(a.replace(/[^\d]/g, ''), 10) || 0;
+          const numB = parseInt(b.replace(/[^\d]/g, ''), 10) || 0;
+          return numA - numB;
+        });
+
+        slideData.totalSlides = slideFiles.length;
+        slideData.slideResults = [];
+        slideData.discardedSlides = 0;
+
+        for (let i = 0; i < slideFiles.length; i++) {
+          const slidePath = slideFiles[i];
+          const slideXmlText = await zip.files[slidePath].async('string');
+          const textMatches = slideXmlText.match(/<a:t>([^<]*)<\/a:t>/g) || [];
+          const texts = textMatches.map(m => m.replace(/<\/?a:t>/g, '').trim()).filter(t => t.length > 0);
+          
+          const slideNum = i + 1;
+          const combined = texts.join(' ');
+          const isNotice = combined.includes('공지') || combined.includes('개요') || combined.includes('Q&A') || combined.includes('목차');
+          
+          if (texts.length === 0 || isNotice) {
+            slideData.slideResults.push({ isDiscarded: true, content: `슬라이드 ${slideNum} - 비시상안 장표 자동 필터링` });
+            slideData.discardedSlides++;
+            continue;
+          }
+
+          const obj = extractIncentiveFromTexts(texts, slideNum, year, month, fileName, uploadedImageUrl);
+          if (obj) {
+            parsedObjects.push(obj);
+            slideData.slideResults.push({ isDiscarded: false, content: `슬라이드 ${slideNum} - [시상안] "${obj.title}" 판독 완료` });
+          } else {
+            slideData.slideResults.push({ isDiscarded: true, content: `슬라이드 ${slideNum} - 시상 내용 미검출` });
+            slideData.discardedSlides++;
+          }
         }
-      ];
-    } else {
-      // Fallback for May/June slides deck simulation
-      slideData = {
-        totalSlides: 4,
-        discardedSlides: 1,
-        slideResults: [
-          { isDiscarded: false, content: `${month + 1}월 우수 FP 시상 장표 판독` },
-          { isDiscarded: false, content: `${month + 1}월 연속 가동 마감 장표 판독` },
-          { isDiscarded: true, content: "일반 업무 연락 지침" },
-          { isDiscarded: false, content: `${month + 1}월 지점장 추천 시상 장표 판독` }
-        ]
-      };
-      parsedObjects = [
-        {
-          id: `inc-dynamic-deck-1-${Date.now()}`,
-          title: `${month + 1}월 우수 영업가족 시상`,
-          category: "long_auto",
-          startDate: `${year}-${monthStr}-01`,
-          endDate: `${year}-${monthStr}-10`,
-          metricType: "premiums",
-          metricUnit: "원",
-          targetValue: 300000,
-          currentValue: 0,
-          reward: "특별 격려금 지급",
-          description: `${month + 1}월 신계약 누적 실적에 따른 등급별 포상금 매칭`,
-          weeklyIssue: "주력 특약 개편 정보의 고객 공지 및 업셀링 연계",
-          direction: "기가입자 대상 무료 업셀링 혜택 안내 및 지점 특별 기프트 연동 설계서 전달",
-          colorOverride: "blue",
-          slideImage: uploadedImageUrl
-        },
-        {
-          id: `inc-dynamic-deck-2-${Date.now()}`,
-          title: `${month + 1}월 활동성 보강 연속가동 시상`,
-          category: "two_annual",
-          startDate: `${year}-${monthStr}-01`,
-          endDate: `${year}-${monthStr}-15`,
-          metricType: "two_tier",
-          metricUnit: "주",
-          currentValue: 0,
-          reward: "연속가동 보너스 지급",
-          description: `주차별 연속 가동 설계사를 위한 지점장 격려 포상`,
-          weeklyIssue: "주간 연속 가동 리듬 유지 관리",
-          direction: "소액 화재보험이나 주택 보장 플랜을 활용해 1건 이상 가동 완료 관리",
-          milestones: [
-            { name: "1주 가동", value: 1, reward: "시상 10,000원" },
-            { name: "2주 연속", value: 2, reward: "시상 30,000원" },
-            { name: "3주 연속", value: 3, reward: "시상 80,000원" }
-          ],
-          colorOverride: "gold",
-          slideImage: uploadedImageUrl
+      } catch (err) {
+        console.error("PPTX Parsing failed: ", err);
+      }
+    }
+
+    // --- 2. PDF 파일인 경우: 페이지 수 카운팅 및 텍스트 기반 룰 기반 시뮬레이터 ---
+    if (isPdf && parsedObjects.length === 0) {
+      try {
+        const text = await file.text();
+        const matches = text.match(/\/Type\s*\/Page\b/g);
+        const pages = matches ? matches.length : 5;
+        
+        slideData.totalSlides = pages;
+        slideData.discardedSlides = Math.max(1, Math.round(pages * 0.15));
+        
+        const validPages = pages - slideData.discardedSlides;
+        for (let i = 1; i <= pages; i++) {
+          if (i <= slideData.discardedSlides) {
+            slideData.slideResults.push({ isDiscarded: true, content: `PDF ${i}페이지 - 안내 및 지침 (자동 폐기)` });
+          } else {
+            const index = i - slideData.discardedSlides;
+            const tempTitle = `${month + 1}월 ${index}차 지점 추천 프로모션`;
+            const startDateStr = `${year}-${monthStr}-01`;
+            const endDateStr = `${year}-${monthStr}-15`;
+            
+            const obj = {
+              id: `inc-pdf-${index}-${Date.now()}`,
+              title: tempTitle,
+              category: "long_auto",
+              startDate: startDateStr,
+              endDate: endDateStr,
+              metricType: "premiums",
+              metricUnit: "원",
+              targetValue: 200000,
+              currentValue: 0,
+              reward: "시상금 200,000원 지급",
+              description: `${month + 1}월 지점 매출 활성화를 위한 추천 특별 시상 프로모션`,
+              weeklyIssue: "신담보 출시 및 한도 확대 집중 홍보 전략 활용",
+              direction: "고객별 맞춤 설계서 발송 및 주간 가동 완료 관리",
+              colorOverride: index % 2 === 0 ? "blue" : "gold",
+              slideImage: ""
+            };
+            parsedObjects.push(obj);
+            slideData.slideResults.push({ isDiscarded: false, content: `PDF ${i}페이지 - [시상안] "${obj.title}" 판독 완료` });
+          }
         }
-      ];
+      } catch (err) {
+        console.error("PDF Parsing failed: ", err);
+      }
+    }
+
+    // --- 3. 일반 이미지나 폴백 상황 (또는 PPTX/PDF 파싱 결과가 없는 경우) ---
+    // --- 3. 일반 이미지나 폴백 상황 (또는 PPTX/PDF 파싱 결과가 없는 경우) ---
+    if (parsedObjects.length === 0) {
+      if (uploadedImageUrl) {
+        // 단일 이미지 업로드 시 정확히 1개의 시상안만 생성
+        const cleanName = fileName.replace(/\.[^/.]+$/, "");
+        slideData.totalSlides = 1;
+        slideData.discardedSlides = 0;
+        slideData.slideResults = [
+          { isDiscarded: false, content: `이미지 스캔 - [시상안] "${cleanName}" 판독 완료` }
+        ];
+        parsedObjects = [
+          {
+            id: `inc-img-${Date.now()}`,
+            title: cleanName,
+            category: "long_auto",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-15`,
+            metricType: "premiums",
+            metricUnit: "원",
+            targetValue: 200000,
+            currentValue: 0,
+            reward: "시상 규정 참조",
+            description: `이미지 파일 '${fileName}'에서 업로드된 시상안 정보입니다.`,
+            weeklyIssue: "당주 프로모션 가동 전략 수립 및 가망 고객 제안 집중",
+            direction: "고객별 최적 플랜 설계서 모바일 발송 및 활동 가동 관리",
+            colorOverride: "blue",
+            slideImage: uploadedImageUrl
+          }
+        ];
+      } else {
+        // 기타 파일 포맷의 경우 기존 데모용 6개 더미 생성
+        slideData.totalSlides = 9;
+        slideData.discardedSlides = 2;
+        slideData.slideResults = [
+          { isDiscarded: true, content: `${month + 1}월 프로모션 안내 개요` },
+          { isDiscarded: false, content: `${month + 1}월 창원지역단 뉴리치 프로모션` },
+          { isDiscarded: false, content: `${month + 1}월 장기보장성 매출 극대화 시상` },
+          { isDiscarded: false, content: `${month + 1}월 연속 가동 주차별 마감 시상` },
+          { isDiscarded: false, content: `${month + 1}월 도입 챔피언 리쿠르팅 시상` },
+          { isDiscarded: false, content: `영남지역본부 우수 지점 도입 육성 프로모션` },
+          { isDiscarded: false, content: `${month + 1}월 특별 종합 대내외 시상` },
+          { isDiscarded: true, content: `유의사항 및 승환계약 제외 기준 안내` },
+          { isDiscarded: true, content: `Q&A 및 지점장 격려 공지` }
+        ];
+
+        parsedObjects = [
+          {
+            id: `inc-new-rich-${Date.now()}`,
+            title: `${month + 1}월 창원지역단 뉴리치 프로모션`,
+            category: "long_auto",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-03`,
+            metricType: "premiums",
+            metricUnit: "원",
+            currentValue: 0,
+            milestones: [
+              { name: "월납 20만원↑ 달성", value: 200000, reward: "월납 300% 시상금 지급" },
+              { name: "월납 50만원↑ 달성", value: 500000, reward: "월납 400% 시상금 지급" }
+            ],
+            reward: "월납 300%~400% 시상금 지급",
+            description: "리치간병보험 납입기간 및 월납P 기준 충족 시 건당 시상금 지급 프로모션",
+            weeklyIssue: "리치간병보험 신규 가입 혜택 홍보 및 37회차 이내 승환계약 제외 기준 유의",
+            direction: "15년납/10년납 가입 희망 고객 대상 업셀링 제안서 전달 및 명절 전 스퍼트 가동",
+            colorOverride: "orange",
+            slideImage: uploadedImageUrl
+          },
+          {
+            id: `inc-changwon-max-${Date.now()}`,
+            title: `${month + 1}월 창원지역단 장기보장성 매출 극대화 프로모션`,
+            category: "long_auto",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-15`,
+            metricType: "premiums",
+            metricUnit: "원",
+            targetValue: 500000,
+            currentValue: 0,
+            reward: "매출 장려금 추가 지급",
+            description: "장기 보장성 누적 초회보험료 구간별 특별 특별 인센티브 매칭",
+            weeklyIssue: "당월 매출 목표 조기 완수 및 지점 랭킹 상승 전략",
+            direction: "우량 가망고객의 집중 클로징 및 간편 보장 한도 소구 화법 적용 제안",
+            colorOverride: "blue",
+            slideImage: uploadedImageUrl
+          },
+          {
+            id: `inc-two-continuity-${Date.now()}`,
+            title: `${month + 1}월 연속 가동 주차별 마감 시상`,
+            category: "two_annual",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-28`,
+            metricType: "two_tier",
+            metricUnit: "주",
+            currentValue: 0,
+            reward: "2W 주간 가동 보너스 지급",
+            description: "매주 가동 설계사들의 활동성 보강을 위한 주차별 연속 가동 격려금 프로모션",
+            weeklyIssue: "매주 누락 없는 계약 가동 흐름 유지 관리",
+            direction: "소액 화재보험이나 주택 보장 플랜을 활용해 1건 이상 가동 완료 관리",
+            milestones: [
+              { name: "1주차 가동 달성", value: 1, reward: "시상 20,000원" },
+              { name: "2주차 연속 달성", value: 2, reward: "시상 50,000원" },
+              { name: "3주차 연속 달성", value: 3, reward: "시상 100,000원" },
+              { name: "4주차 연속 달성", value: 4, reward: "시상 200,000원" }
+            ],
+            colorOverride: "gold",
+            slideImage: uploadedImageUrl
+          },
+          {
+            id: `inc-recruit-champ-${Date.now()}`,
+            title: `${month + 1}월 도입 챔피언 리쿠르팅 시상`,
+            category: "recruitment",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-28`,
+            metricType: "recruit_tier",
+            metricUnit: "명",
+            currentValue: 0,
+            reward: "도입 성공 장려금 대폭 지급",
+            description: "동료 설계사 도입 시 정착 지원금 및 소개 리쿠르팅 수당 획기적 매칭",
+            weeklyIssue: "지점 FP 조직 확대 및 신인 도입 활동 촉진 기간",
+            direction: "설명회 초청 및 지점장 동반 상담 추진으로 클로징 성공율 가속화",
+            milestones: [
+              { name: "도입 1명 달성", value: 1, reward: "시상 500,000원" },
+              { name: "도입 2명 달성", value: 2, reward: "시상 1,200,000원" },
+              { name: "도입 3명 달성", value: 3, reward: "시상 2,500,000원" }
+            ],
+            colorOverride: "green",
+            slideImage: uploadedImageUrl
+          },
+          {
+            id: `inc-bm-recruit-bonus-${Date.now()}`,
+            title: "영남지역본부 우수 지점 도입 육성 프로모션",
+            category: "recruitment",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-28`,
+            metricType: "recruit_tier",
+            metricUnit: "명",
+            currentValue: 0,
+            reward: "지점 육성 격려금 매칭",
+            description: "본부 지점 정예 조직 육성을 위한 지점 누적 도입 프로모션",
+            weeklyIssue: "하반기 지점 볼륨업 및 도입 활성화 분위기 유도",
+            direction: "지점 세미나 및 1:1 상담 기획으로 도입 성공율 극대화",
+            milestones: [
+              { name: "지점 총 도입 3명 달성", value: 3, reward: "시상 1,500,000원" },
+              { name: "지점 총 도입 5명 달성", value: 5, reward: "시상 3,500,000원" }
+            ],
+            colorOverride: "green",
+            slideImage: uploadedImageUrl
+          },
+          {
+            id: `inc-special-annual-${Date.now()}`,
+            title: `${month + 1}월 특별 종합 대내외 시상`,
+            category: "long_auto",
+            startDate: `${year}-${monthStr}-01`,
+            endDate: `${year}-${monthStr}-15`,
+            metricType: "premiums",
+            metricUnit: "원",
+            targetValue: 1000000,
+            currentValue: 0,
+            reward: "특별 명절 선물세트 증정",
+            description: "보장성 합산보험료 100만 원 돌파 시 프리미엄 명절 한우세트 증정",
+            weeklyIssue: "고액 종합 설계 청약 매출 유치 스퍼트 집중",
+            direction: "우량 가망 리스트 집중 제안 및 종합 보장 플랜 연계 가동",
+            colorOverride: "purple",
+            slideImage: uploadedImageUrl
+          }
+        ];
+      }
     }
 
     // PREMIUM ACTIVE AI SCAN SIMULATOR SEQUENCE
@@ -789,13 +1005,12 @@
     updateLoader(50, "주요 텍스트 특징점 추출 중...");
     await sleep(150);
 
-    const isSeptember = month === 8;
-    const keywords = isSeptember ? "'리치', '팀장 활동비', '추석 감사', '3·6·9', '도입'" : "'장기보장성', '초회보험료', '활동성', '연속 가동'";
-    await typeLogLine(`Analyzing semantic context... Found keywords: ${keywords}`, 'warning');
+    const validCount = parsedObjects.length;
+    await typeLogLine(`Analyzing semantic context... Found ${slideData.totalSlides} slides/pages (${validCount} valid incentives, ${slideData.discardedSlides} non-incentive pages).`, 'warning');
     updateLoader(75, "시상 조건 의미 파악 및 룰 매칭 중...");
     await sleep(150);
 
-    await typeLogLine(`Parsed successfully! Found ${isSeptember ? 9 : 2} valid incentive rules. Generating draft card.`, 'success');
+    await typeLogLine(`Parsed successfully! Generated ${validCount} draft cards.`, 'success');
     updateLoader(100, "분석 완료! 기획안 초안 생성 성공");
     await sleep(200);
 
@@ -806,76 +1021,7 @@
     runSimulation(fileName, slideData, parsedObjects);
   }
 
-  // Action Bar Commit Button
-  if (btnCommitParsed) {
-    btnCommitParsed.addEventListener('click', () => {
-      if (!window.currentParsedObjects || window.currentParsedObjects.length === 0) return;
-
-      // 1. Save currently active slide fields
-      saveCurrentFormValues();
-
-      // 2. Add or update parsed objects in active state database
-      window.currentParsedObjects.forEach(obj => {
-        const existingIdx = window.INCENTIVE_DATABASE.incentives.findIndex(i => i.id === obj.id);
-        if (existingIdx !== -1) {
-          window.INCENTIVE_DATABASE.incentives[existingIdx] = obj;
-        } else {
-          window.INCENTIVE_DATABASE.incentives.push(obj);
-        }
-      });
-
-      // Automatically navigate the calendar to the newly uploaded incentive's month and year
-      if (window.currentParsedObjects.length > 0) {
-        const firstInc = window.currentParsedObjects[0];
-        if (firstInc.startDate) {
-          const parts = firstInc.startDate.split('-');
-          if (parts.length === 3) {
-            const newYear = parseInt(parts[0], 10);
-            const newMonth = parseInt(parts[1], 10) - 1; // 0-indexed
-            
-            if (typeof window.setCalendarDate === 'function') {
-              window.setCalendarDate(newYear, newMonth);
-            } else if (typeof window.refreshApp === 'function') {
-              window.refreshApp();
-            }
-          }
-        }
-      } else {
-        if (typeof window.refreshApp === 'function') {
-          window.refreshApp();
-        }
-      }
-
-      // Reset review views
-      parsedResultsPanel.style.display = 'none';
-      
-      // Refresh Management Board list immediately after deploy
-      if (typeof window.renderActiveIncentivesManager === 'function') {
-        window.renderActiveIncentivesManager();
-      }
-
-      if (window.lucide) window.lucide.createIcons();
-
-      // Switch back to calendar view
-      const btnCalendar = document.getElementById('btn-view-calendar');
-      if (btnCalendar) {
-        btnCalendar.click();
-      }
-
-      alert(`총 ${window.currentParsedObjects.length}개의 시상이 성공적으로 일괄 등록되어 캘린더에 반영되었으며, FP 알림이 전송되었습니다!`);
-      window.currentParsedObjects = null;
-      window.activeParsedIndex = null;
-    });
-  }
-
-  // Action Bar Discard Button
-  if (btnDiscardParsed) {
-    btnDiscardParsed.addEventListener('click', () => {
-      parsedResultsPanel.style.display = 'none';
-      window.currentParsedObjects = null;
-      window.activeParsedIndex = null;
-    });
-  }
+  // Action bar buttons and bulk delete events are now bound inside DOMContentLoaded and renderActiveIncentivesManager to ensure proper lifecycle
 
   // --- 4. Active Incentives Management Board Renderer ---
   window.renderActiveIncentivesManager = function () {
@@ -903,9 +1049,18 @@
       if (inc.category === 'two_annual') catLabel = '2W/연도대상';
       else if (inc.category === 'recruitment') catLabel = '도입';
 
+      const isLinked = inc.excelData && inc.excelData.length > 0;
+      const btnColor = isLinked ? 'var(--accent-success)' : 'var(--primary)';
+      const btnBorder = isLinked ? 'rgba(0, 200, 83, 0.3)' : 'rgba(243, 115, 33, 0.25)';
+      const btnBg = isLinked ? 'rgba(0, 200, 83, 0.02)' : 'rgba(243, 115, 33, 0.02)';
+      const btnHoverBg = isLinked ? 'rgba(0, 200, 83, 0.08)' : 'rgba(243, 115, 33, 0.08)';
+      const btnText = isLinked ? `연동 완료 (${inc.excelData.length}명)` : '실적연동';
+      const iconName = isLinked ? 'check' : 'file-spreadsheet';
+
       return `
         <div class="active-inc-item" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 12px 16px; border-radius: var(--radius-sm); font-family: var(--font-sans) !important; gap: 12px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
+            <input type='checkbox' class='chk-select-inc' data-id='${inc.id}' style='width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); flex-shrink: 0;'>
             <span class="category-indicator cat-${inc.category}" style="flex-shrink: 0; padding: 4px 8px; font-size: 0.65rem; border-radius: 4px; font-weight: 700;">
               ${catLabel}
             </span>
@@ -916,6 +1071,9 @@
           </div>
           
           <div style="display: flex; gap: 8px; flex-shrink: 0;">
+            <button class="btn btn-secondary btn-upload-xlsx" data-id="${inc.id}" style="padding: 6px 12px; font-size: 0.775rem; display: inline-flex; align-items: center; gap: 4px; color: ${btnColor}; border-color: ${btnBorder}; background: ${btnBg};" onmouseover="this.style.background='${btnHoverBg}'" onmouseout="this.style.background='${btnBg}'">
+              <i data-lucide="${iconName}" style="width: 12px; height: 12px;"></i> ${btnText}
+            </button>
             <button class="btn btn-secondary btn-edit-inc" data-id="${inc.id}" style="padding: 6px 12px; font-size: 0.775rem; display: inline-flex; align-items: center; gap: 4px;">
               <i data-lucide="edit-2" style="width: 12px; height: 12px;"></i> 수정
             </button>
@@ -929,34 +1087,119 @@
 
     listWrapper.innerHTML = htmlParts.join('');
 
-    // Bind Edit Button Clicks
-    listWrapper.querySelectorAll('.btn-edit-inc').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        const targetObj = window.INCENTIVE_DATABASE.incentives.find(i => i.id === id);
-        if (!targetObj) return;
+    // Select All and Bulk Delete buttons control
+    const bulkDeleteBtn = document.getElementById('btn-bulk-delete-inc');
+    const chkSelectAll = document.getElementById('chk-select-all-inc');
 
-        // Clone parsed edit form
-        window.currentParsedObjects = [JSON.parse(JSON.stringify(targetObj))];
-        window.activeParsedIndex = 0;
-        window.currentSlideCount = 1;
-        window.currentDiscardedCount = 0;
+    if (bulkDeleteBtn) {
+      bulkDeleteBtn.style.display = 'none'; // hide by default on redraw
+      
+      // Bind click handler dynamically to prevent registration issues
+      bulkDeleteBtn.onclick = async () => {
+        const checkedBoxes = listWrapper.querySelectorAll('.chk-select-inc:checked');
+        if (checkedBoxes.length === 0) {
+          alert('선택된 시상안이 없습니다.');
+          return;
+        }
 
-        renderParsedResultCard(0);
-        parsedResultsPanel.style.display = 'block';
-        parsedResultsPanel.scrollIntoView({ behavior: 'smooth' });
-      });
+        if (confirm(`선택한 ${checkedBoxes.length}개의 시상안을 정말 일괄 삭제하고 배포 취소하시겠습니까?\n이 작업은 되돌릴 수 없으며 캘린더에서 즉시 삭제됩니다.`)) {
+          const idsToDelete = Array.from(checkedBoxes).map(chk => chk.getAttribute('data-id'));
+          
+          window.INCENTIVE_DATABASE.incentives = window.INCENTIVE_DATABASE.incentives.filter(i => !idsToDelete.includes(i.id));
+
+          try {
+            await window.dbSet('hanwha_incentives', window.INCENTIVE_DATABASE.incentives);
+          } catch (err) {
+            console.error("IndexedDB delete failed during bulk delete", err);
+          }
+
+          window.renderActiveIncentivesManager();
+
+          if (typeof window.refreshApp === 'function') {
+            window.refreshApp();
+          }
+          
+          alert('선택한 시상안들이 성공적으로 일괄 삭제 및 배포 취소되었습니다.');
+        }
+      };
+    }
+    if (chkSelectAll) {
+      chkSelectAll.checked = false; // uncheck by default on redraw
+      chkSelectAll.onchange = (e) => {
+        const isChecked = e.target.checked;
+        listWrapper.querySelectorAll('.chk-select-inc').forEach(chk => {
+          chk.checked = isChecked;
+        });
+        updateBulkDeleteBtnVisibility();
+      };
+    }
+
+    function updateBulkDeleteBtnVisibility() {
+      if (!bulkDeleteBtn) return;
+      const allBoxes = listWrapper.querySelectorAll('.chk-select-inc');
+      const checkedBoxes = listWrapper.querySelectorAll('.chk-select-inc:checked');
+      
+      bulkDeleteBtn.style.display = checkedBoxes.length > 0 ? 'inline-flex' : 'none';
+      
+      if (chkSelectAll) {
+        chkSelectAll.checked = allBoxes.length > 0 && checkedBoxes.length === allBoxes.length;
+      }
+    }
+
+    // Bind click and change event handlers directly to elements to ensure reliability and bypass delegation issues
+    listWrapper.querySelectorAll('.chk-select-inc').forEach(chk => {
+      chk.onchange = () => {
+        updateBulkDeleteBtnVisibility();
+      };
     });
 
-    // Bind Delete Button Clicks
+    listWrapper.querySelectorAll('.btn-upload-xlsx').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute('data-id');
+        window.activeIncentiveXlsxId = id;
+        const uploadInput = document.getElementById('inc-xlsx-upload-input');
+        if (uploadInput) {
+          uploadInput.click();
+        }
+      };
+    });
+
+    listWrapper.querySelectorAll('.btn-edit-inc').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute('data-id');
+        const incentives = window.INCENTIVE_DATABASE.incentives;
+        const targetIdx = incentives.findIndex(i => i.id === id);
+        if (targetIdx === -1) return;
+
+        window.currentParsedObjects = JSON.parse(JSON.stringify(incentives));
+        window.activeParsedIndex = targetIdx;
+        window.currentSlideCount = incentives.length;
+        window.currentDiscardedCount = 0;
+
+        renderParsedResultCard(targetIdx);
+        if (parsedResultsPanel) {
+          parsedResultsPanel.style.display = 'block';
+          parsedResultsPanel.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
+    });
+
     listWrapper.querySelectorAll('.btn-delete-inc').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = async (e) => {
+        e.preventDefault();
         const id = btn.getAttribute('data-id');
         const targetObj = window.INCENTIVE_DATABASE.incentives.find(i => i.id === id);
         if (!targetObj) return;
 
         if (confirm(`"${targetObj.title}" 시상안을 정말 삭제하고 배포 취소하시겠습니까?\n이 작업은 되돌릴 수 없으며 캘린더에서 즉시 삭제됩니다.`)) {
           window.INCENTIVE_DATABASE.incentives = window.INCENTIVE_DATABASE.incentives.filter(i => i.id !== id);
+          try {
+            await window.dbSet('hanwha_incentives', window.INCENTIVE_DATABASE.incentives);
+          } catch (err) {
+            console.error("IndexedDB delete failed", err);
+          }
           window.renderActiveIncentivesManager();
 
           if (typeof window.refreshApp === 'function') {
@@ -964,46 +1207,304 @@
           }
           alert('시상안이 성공적으로 삭제 및 배포 취소되었습니다.');
         }
-      });
+      };
     });
 
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons({ root: listWrapper });
+    }
   };
 
-  // --- 5. Excel (xlsx) Performance Tracker Integration ---
-  const xlsxInput = document.getElementById('xlsx-input');
-  const xlsxDropZone = document.getElementById('xlsx-drop-zone');
+  // --- 5. Incentive-specific Excel (.xlsx) Performance Mapping & Parsing ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DOM selection variables once DOM is ready to avoid null elements
+    fileDropZone = document.getElementById('file-drop-zone');
+    fileInput = document.getElementById('file-input');
+    consoleLogsContainer = document.getElementById('console-logs-container');
+    analyzerLoader = document.getElementById('analyzer-loader');
+    loaderProgressFill = document.getElementById('loader-progress-fill-bar');
+    loaderText = document.getElementById('analyzer-loader-text');
+    parsedResultsPanel = document.getElementById('parsed-results-panel');
+    parsedResultCardData = document.getElementById('parsed-result-card-data');
 
-  if (xlsxInput && xlsxDropZone) {
-    xlsxInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleXlsxFile(e.target.files[0]);
-        xlsxInput.value = '';
-      }
-    });
+    // Bind file upload drop zone event listeners
+    if (fileInput && fileDropZone) {
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleCustomFiles(e.target.files);
+          fileInput.value = '';
+        }
+      });
 
-    xlsxInput.addEventListener('dragenter', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      xlsxDropZone.classList.add('dragover');
-    });
-    xlsxInput.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      xlsxDropZone.classList.add('dragover');
-    });
-    xlsxInput.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      xlsxDropZone.classList.remove('dragover');
-    });
-    xlsxInput.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      xlsxDropZone.classList.remove('dragover');
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        handleXlsxFile(e.dataTransfer.files[0]);
+      fileInput.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropZone.classList.add('dragover');
+      });
+      fileInput.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropZone.classList.add('dragover');
+      });
+      fileInput.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropZone.classList.remove('dragover');
+      });
+      fileInput.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleCustomFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    // Bind review commit action button click handler
+    const btnCommitParsed = document.getElementById('btn-commit-parsed');
+    if (btnCommitParsed) {
+      btnCommitParsed.addEventListener('click', async () => {
+        if (!window.currentParsedObjects || window.currentParsedObjects.length === 0) return;
+
+        // 1. Save currently active slide fields
+        saveCurrentFormValues();
+
+        // 2. Add or update parsed objects in active state database
+        window.currentParsedObjects.forEach(obj => {
+          const existingIdx = window.INCENTIVE_DATABASE.incentives.findIndex(i => i.id === obj.id);
+          if (existingIdx !== -1) {
+            window.INCENTIVE_DATABASE.incentives[existingIdx] = obj;
+          } else {
+            window.INCENTIVE_DATABASE.incentives.push(obj);
+          }
+        });
+
+        // Synchronize with IndexedDB
+        try {
+          await window.dbSet('hanwha_incentives', window.INCENTIVE_DATABASE.incentives);
+        } catch (err) {
+          console.error("IndexedDB sync failed", err);
+          alert("시상 데이터 저장에 실패했습니다. 저장 장치 용량 부족 등 브라우저 데이터 정책을 확인해주세요.");
+        }
+
+        // Automatically navigate the calendar to the newly uploaded incentive's month and year
+        if (window.currentParsedObjects.length > 0) {
+          const firstInc = window.currentParsedObjects[0];
+          if (firstInc.startDate) {
+            const parts = firstInc.startDate.split('-');
+            if (parts.length === 3) {
+              const newYear = parseInt(parts[0], 10);
+              const newMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+              
+              if (typeof window.setCalendarDate === 'function') {
+                window.setCalendarDate(newYear, newMonth);
+              } else if (typeof window.refreshApp === 'function') {
+                window.refreshApp();
+              }
+            }
+          }
+        } else {
+          if (typeof window.refreshApp === 'function') {
+            window.refreshApp();
+          }
+        }
+
+        // Reset review views
+        if (parsedResultsPanel) parsedResultsPanel.style.display = 'none';
+        
+        // Refresh Management Board list immediately after deploy
+        if (typeof window.renderActiveIncentivesManager === 'function') {
+          window.renderActiveIncentivesManager();
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+
+        // Switch back to calendar view
+        const btnCalendar = document.getElementById('btn-view-calendar');
+        if (btnCalendar) {
+          btnCalendar.click();
+        }
+
+        alert(`총 ${window.currentParsedObjects.length}개의 시상이 성공적으로 일괄 등록되어 캘린더에 반영되었으며, FP 알림이 전송되었습니다!`);
+        window.currentParsedObjects = null;
+        window.activeParsedIndex = null;
+      });
+    }
+
+    // Bind review discard action button click handler
+    const btnDiscardParsed = document.getElementById('btn-discard-parsed');
+    if (btnDiscardParsed) {
+      btnDiscardParsed.addEventListener('click', () => {
+        if (parsedResultsPanel) parsedResultsPanel.style.display = 'none';
+        window.currentParsedObjects = null;
+        window.activeParsedIndex = null;
+      });
+    }
+
+    // Bind excel input change listener
+    const incXlsxInput = document.getElementById('inc-xlsx-upload-input');
+    if (incXlsxInput) {
+      incXlsxInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file || !window.activeIncentiveXlsxId) return;
+
+        try {
+          await loadLibrary('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'XLSX');
+        } catch (err) {
+          console.error("Failed to load XLSX: ", err);
+          alert("Excel 분석 라이브러리(SheetJS)를 로드하지 못했습니다.");
+          return;
+        }
+
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const workbook = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rawRows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          const parsedData = parseIncentiveXlsx(rawRows);
+          if (parsedData.length > 0) {
+            const inc = window.INCENTIVE_DATABASE.incentives.find(i => i.id === window.activeIncentiveXlsxId);
+            if (inc) {
+              inc.excelData = parsedData;
+              inc.valHeaderName = parsedData.valHeaderName || '실적';
+              
+              // Sync Excel list to IndexedDB
+              await window.dbSet('hanwha_incentives', window.INCENTIVE_DATABASE.incentives);
+              
+              if (typeof window.refreshApp === 'function') {
+                window.refreshApp();
+              }
+              alert(`[${inc.title}] 시책 실적 데이터 연동 완료!\n총 ${parsedData.length}명의 실적 데이터가 정상 반영되었습니다.`);
+            }
+          } else {
+            alert("선택하신 엑셀 파일에서 유효한 실적 데이터(이름 및 수치)를 찾지 못했습니다.");
+          }
+        } catch (err) {
+          console.error("XLSX parsing failed: ", err);
+          alert("엑셀 파일 파싱 중 오류가 발생했습니다: " + err.message);
+        }
+
+        incXlsxInput.value = '';
+        window.activeIncentiveXlsxId = null;
+      });
+    }
+  });
+
+  // Smart XLSX achievement parser
+  function parseIncentiveXlsx(rows) {
+    let codeColIdx = -1;
+    let nameColIdx = -1;
+    let valColIdx = -1;
+    let valHeaderName = '실적';
+    
+    // 1. Scan for header row containing code, name and performance keywords
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] === undefined || row[c] === null) continue;
+        const val = String(row[c]).replace(/\s+/g, '').toLowerCase();
+        
+        // Match FP Code
+        if (val.includes('fp코드') || val.includes('사번') || val.includes('코드') || val.includes('등록번호') || val.includes('설계사코드') || val.includes('사원번호')) {
+          codeColIdx = c;
+        }
+        // Match FP Name
+        else if (val.includes('fp명') || val.includes('성명') || val.includes('이름') || val.includes('설계사명') || val.includes('fp이름') || val === 'fp' || val === '설계사') {
+          nameColIdx = c;
+        }
+        // Match Incentive/Value (priority is given to '시상금' keyword)
+        else if (val.includes('시상금') || val.includes('실적') || val.includes('보험료') || val.includes('보장성') || val.includes('환산') || val.includes('건수') || val.includes('가동') || val.includes('달성')) {
+          if (valColIdx === -1 || val.includes('시상금')) {
+            valColIdx = c;
+            if (val.includes('시상금')) {
+              valHeaderName = '예상 시상금';
+            }
+          }
+        }
       }
+      if (codeColIdx !== -1 && valColIdx !== -1) {
+        break;
+      }
+    }
+    
+    // Fallback if header not found
+    if (codeColIdx === -1) codeColIdx = 0;
+    if (nameColIdx === -1) nameColIdx = codeColIdx;
+    if (valColIdx === -1) valColIdx = 1;
+    
+    const data = [];
+    rows.forEach((row) => {
+      if (!Array.isArray(row) || row.length <= Math.max(codeColIdx, Math.max(nameColIdx, valColIdx))) return;
+      
+      const rawCode = String(row[codeColIdx]).trim();
+      const rawName = String(row[nameColIdx]).trim();
+      
+      // Filter out typical title/header values and empty spaces
+      if (rawCode === '' || rawCode.toLowerCase().includes('코드') || rawCode.toLowerCase().includes('사번') || rawCode.includes('합계') || rawCode.includes('총계') || rawCode.includes('NO')) return;
+      if (rawName.includes('합계') || rawName.includes('총계')) return;
+      
+      const rawVal = row[valColIdx];
+      if (rawVal === undefined || rawVal === null || String(rawVal).trim() === '') return;
+      
+      let numVal = parseFloat(String(rawVal).replace(/,/g, ''));
+      if (isNaN(numVal)) numVal = 0;
+      
+      data.push({
+        code: rawCode,
+        name: rawName === rawCode ? '' : rawName, // Leave name blank if fallback was used
+        value: numVal
+      });
+    });
+    
+    const result = data;
+    result.valHeaderName = valHeaderName;
+    return result;
+  }
+
+  // --- 6. Branch Selector Change Event Handler ---
+  const branchSelector = document.getElementById('branch-selector');
+  if (branchSelector) {
+    branchSelector.addEventListener('change', async (e) => {
+      const idx = e.target.value;
+      if (idx === "" || !window.currentBranchDataList || !window.currentBranchDataList[idx]) return;
+      
+      const branchData = window.currentBranchDataList[idx];
+      const profile = window.INCENTIVE_DATABASE.agentProfile;
+      const isBM = profile.role === 'bm';
+      
+      profile.currentStats.premiums = branchData.monthlyPremium;
+      profile.currentStats.converted = branchData.convertedPremium;
+      
+      profile.currentStats.converted40k = "-";
+      profile.currentStats.retention = "-";
+      
+      // Stats updated in profile.currentStats, widget updating is no longer needed since the widget was deleted.
+      
+      // Save stats persistently to IndexedDB
+      try {
+        await window.dbSet('hanwha_agent_profile', profile);
+      } catch (err) {
+        console.error("IndexedDB profile sync failed", err);
+      }
+      
+      // Update sidebar branch info if not BM
+      const userBranchEl = document.getElementById('user-branch');
+      const sideBranch = document.getElementById('sidebar-user-branch');
+      if (userBranchEl && !isBM) userBranchEl.textContent = branchData.name;
+      if (sideBranch && !isBM) {
+        sideBranch.textContent = branchData.name;
+        sideBranch.style.display = 'block';
+      }
+      
+      if (typeof window.refreshApp === 'function') {
+        window.refreshApp();
+      }
+      
+      alert(`[${branchData.name}] 실적 정보 동기화 완료!\n\n• 월초 보험료(D열): ${profile.currentStats.premiums.toLocaleString()}원\n• 보장성 환산성적(AA열): ${profile.currentStats.converted.toLocaleString()}원`);
     });
   }
 
@@ -1022,337 +1523,49 @@
       
       const rawRows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       
-      let parsedStats = {
-        contracts: null,
-        premiums: null,
-        recruits: null
-      };
-
-      // --- 1. 지점 총괄 실적 요약 탐색 ---
-      rawRows.forEach((row) => {
-        if (!Array.isArray(row)) return;
-        
-        row.forEach((cell, idx) => {
-          if (typeof cell !== 'string') return;
-          
-          const cleanText = cell.replace(/\s+/g, '');
-          
-          if (cleanText.includes("가동건수") || cleanText.includes("신계약건수") || cleanText.includes("가동건")) {
-            const val = findNumberInRow(row, idx + 1);
-            if (val !== null) parsedStats.contracts = val;
-          }
-          
-          if (cleanText.includes("초회보험료") || cleanText.includes("장기초회") || cleanText.includes("보험료")) {
-            const val = findNumberInRow(row, idx + 1);
-            if (val !== null) parsedStats.premiums = val;
-          }
-          
-          if (cleanText.includes("도입인원") || cleanText.includes("당월도입") || cleanText.includes("도입가동")) {
-            const val = findNumberInRow(row, idx + 1);
-            if (val !== null) parsedStats.recruits = val;
-          }
-        });
-      });
-
-      if (parsedStats.contracts === null || parsedStats.premiums === null || parsedStats.recruits === null) {
-        rawRows.forEach((row) => {
-          if (!Array.isArray(row)) return;
-          const rowStr = row.join('|');
-          
-          if (rowStr.includes("건") && rowStr.match(/\d+/)) {
-            const num = parseInt(rowStr.match(/\d+/)[0], 10);
-            if (num < 100 && parsedStats.contracts === null) parsedStats.contracts = num;
-          }
-          if (rowStr.includes("원") && rowStr.match(/\d[\d,]+/)) {
-            const cleanNum = parseInt(rowStr.match(/\d[\d,]+/)[0].replace(/,/g, ''), 10);
-            if (cleanNum > 10000 && parsedStats.premiums === null) parsedStats.premiums = cleanNum;
-          }
-          if (rowStr.includes("명") && rowStr.match(/\d+/)) {
-            const num = parseInt(rowStr.match(/\d+/)[0], 10);
-            if (num < 50 && parsedStats.recruits === null) parsedStats.recruits = num;
-          }
-        });
-      }
-
-      // --- 2. 설계사(FP)별 개별 상세 실적 목록 파싱 ---
-      let employeeStats = {};
-      let nameColIdx = -1;
-      let contractsColIdx = -1;
-      let premiumsColIdx = -1;
-      let recruitsColIdx = -1;
-      let two_seqColIdx = -1;
-      let pointsColIdx = -1;
-
-      // 헤더 행 탐색을 통해 직원 데이터 열 인덱스 식별
-      rawRows.forEach((row) => {
-        if (!Array.isArray(row)) return;
-        row.forEach((cell, colIdx) => {
-          if (typeof cell !== 'string') return;
-          const cleanText = cell.replace(/\s+/g, '');
-          if (cleanText.includes("FP명") || cleanText.includes("이름") || cleanText.includes("설계사명") || cleanText.includes("설계사")) {
-            nameColIdx = colIdx;
-          }
-          if (cleanText.includes("가동건") || cleanText.includes("가동건수") || cleanText.includes("신계약")) {
-            contractsColIdx = colIdx;
-          }
-          if (cleanText.includes("초회보험") || cleanText.includes("초회보험료") || cleanText.includes("장기초회")) {
-            premiumsColIdx = colIdx;
-          }
-          if (cleanText.includes("도입가동") || cleanText.includes("도입인원") || cleanText.includes("리쿠르팅")) {
-            recruitsColIdx = colIdx;
-          }
-          if (cleanText.includes("2W") || cleanText.includes("연속가동") || cleanText.includes("연속주") || cleanText.includes("가동주차")) {
-            two_seqColIdx = colIdx;
-          }
-          if (cleanText.includes("연도대상") || cleanText.includes("포인트") || cleanText.includes("누적포인트") || cleanText.includes("pt")) {
-            pointsColIdx = colIdx;
-          }
-        });
-      });
-
-      // 열 인덱스가 탐색되면 행별 직원 데이터 추출
-      if (nameColIdx !== -1) {
-        rawRows.forEach((row) => {
-          if (!Array.isArray(row) || row.length <= nameColIdx) return;
-          const fpName = row[nameColIdx];
-          if (typeof fpName !== 'string' || fpName.trim() === "" || fpName.includes("FP명") || fpName.includes("이름") || fpName.includes("설계사")) return;
-
-          const cleanFpName = fpName.trim();
-          let stats = {
-            contracts: 0,
-            premiums: 0,
-            recruits: 0,
-            two连续: 1,
-            points: 6500
-          };
-
-          if (contractsColIdx !== -1 && typeof row[contractsColIdx] === 'number') {
-            stats.contracts = row[contractsColIdx];
-          } else if (contractsColIdx !== -1 && typeof row[contractsColIdx] === 'string') {
-            const num = parseInt(row[contractsColIdx].replace(/,/g, '').match(/\d+/)?.[0], 10);
-            if (!isNaN(num)) stats.contracts = num;
-          }
-
-          if (premiumsColIdx !== -1 && typeof row[premiumsColIdx] === 'number') {
-            stats.premiums = row[premiumsColIdx];
-          } else if (premiumsColIdx !== -1 && typeof row[premiumsColIdx] === 'string') {
-            const num = parseInt(row[premiumsColIdx].replace(/,/g, '').match(/\d+/)?.[0], 10);
-            if (!isNaN(num)) stats.premiums = num;
-          }
-
-          if (recruitsColIdx !== -1 && typeof row[recruitsColIdx] === 'number') {
-            stats.recruits = row[recruitsColIdx];
-          } else if (recruitsColIdx !== -1 && typeof row[recruitsColIdx] === 'string') {
-            const num = parseInt(row[recruitsColIdx].replace(/,/g, '').match(/\d+/)?.[0], 10);
-            if (!isNaN(num)) stats.recruits = num;
-          }
-
-          if (two_seqColIdx !== -1 && typeof row[two_seqColIdx] === 'number') {
-            stats.two连续 = row[two_seqColIdx];
-          } else if (two_seqColIdx !== -1 && typeof row[two_seqColIdx] === 'string') {
-            const num = parseInt(row[two_seqColIdx].replace(/,/g, '').match(/\d+/)?.[0], 10);
-            if (!isNaN(num)) stats.two连续 = num;
-          }
-
-          if (pointsColIdx !== -1 && typeof row[pointsColIdx] === 'number') {
-            stats.points = row[pointsColIdx];
-          } else if (pointsColIdx !== -1 && typeof row[pointsColIdx] === 'string') {
-            const num = parseInt(row[pointsColIdx].replace(/,/g, '').match(/\d+/)?.[0], 10);
-            if (!isNaN(num)) stats.points = num;
-          }
-
-          employeeStats[cleanFpName] = stats;
-        });
-
-        // 전역 데이터베이스에 바인딩
-        window.INCENTIVE_DATABASE.employeeStats = employeeStats;
-      }
-
-      // --- 2.5 2W 및 연도대상 기준(Milestones) 동적 파싱 ---
-      let parsed2WMilestones = [];
-      let parsedAnnualMilestones = [];
-      let milestoneSyncMsg = "";
-
-      rawRows.forEach((row) => {
-        if (!Array.isArray(row)) return;
-        row.forEach((cell, idx) => {
-          if (typeof cell !== 'string') return;
-          const cleanText = cell.replace(/\s+/g, '');
-          
-          // 2W 기준 탐색 (예: "1주", "2주 연속", "3주 연속", "4주 연속" 등)
-          if (cleanText.includes("1주") || cleanText.includes("2주") || cleanText.includes("3주") || cleanText.includes("4주")) {
-            const weekMatch = cleanText.match(/(\d)주/);
-            if (weekMatch) {
-              const weekNum = parseInt(weekMatch[1], 10);
-              let reward = "";
-              for (let offset = 1; offset <= 3; offset++) {
-                const nextCell = row[idx + offset];
-                if (nextCell && typeof nextCell === 'string' && (nextCell.includes("원") || nextCell.includes("시상") || nextCell.includes("지급") || nextCell.includes("격려금"))) {
-                  reward = nextCell.trim();
-                  break;
-                }
-              }
-              if (!reward && row[idx + 1]) reward = String(row[idx + 1]).trim();
-              if (!reward) reward = `${weekNum * 2}만원 상당 시상`;
-              
-              const tierNames = ["브론즈", "실버", "골드", "다이아"];
-              const tierName = tierNames[weekNum - 1] || "스페셜";
-              
-              parsed2WMilestones.push({
-                name: `${weekNum}주 연속 (${tierName})`,
-                value: weekNum,
-                reward: reward
-              });
-            }
-          }
-          
-          // 연도대상 클래스 기준 탐색 (예: "실버클래스", "골드클래스", "플래티넘클래스" 등)
-          if (cleanText.includes("실버클래스") || cleanText.includes("골드클래스") || cleanText.includes("플래티넘클래스") || cleanText.includes("실버") || cleanText.includes("골드") || cleanText.includes("플래티넘")) {
-            let className = "";
-            let value = 10000;
-            if (cleanText.includes("실버")) { className = "실버 클래스"; value = 10000; }
-            else if (cleanText.includes("골드")) { className = "골드 클래스"; value = 20000; }
-            else if (cleanText.includes("플래티넘")) { className = "플래티넘 클래스"; value = 30000; }
-            
-            if (className) {
-              let reward = "";
-              for (let offset = 1; offset <= 3; offset++) {
-                const nextCell = row[idx + offset];
-                if (nextCell) {
-                  reward = String(nextCell).trim();
-                  break;
-                }
-              }
-              parsedAnnualMilestones.push({
-                name: className,
-                value: value,
-                reward: reward || "연도대상 특전 지급"
-              });
-            }
-          }
-        });
-      });
-
-      // 파싱된 기준이 있으면 전역 데이터베이스에 반영
-      if (parsed2WMilestones.length > 0) {
-        parsed2WMilestones.sort((a, b) => a.value - b.value);
-        const unique2W = [];
-        const seen = new Set();
-        parsed2WMilestones.forEach(m => {
-          if (!seen.has(m.value)) {
-            seen.add(m.value);
-            unique2W.push(m);
-          }
-        });
-        
-        const inc2W = window.INCENTIVE_DATABASE.incentives.find(i => i.id === 'inc-004');
-        if (inc2W && unique2W.length > 0) {
-          inc2W.milestones = unique2W;
-          milestoneSyncMsg += `\n🎯 2W 연속가동 기준 동적 반영 완료: ${unique2W.map(u => u.name.split(' ')[0] + '(' + u.reward + ')').join(', ')}`;
-        }
-      }
-
-      if (parsedAnnualMilestones.length > 0) {
-        parsedAnnualMilestones.sort((a, b) => a.value - b.value);
-        const uniqueAnnual = [];
-        const seen = new Set();
-        parsedAnnualMilestones.forEach(m => {
-          if (!seen.has(m.name)) {
-            seen.add(m.name);
-            uniqueAnnual.push(m);
-          }
-        });
-        
-        const incAnnual = window.INCENTIVE_DATABASE.incentives.find(i => i.id === 'inc-005');
-        if (incAnnual && uniqueAnnual.length > 0) {
-          incAnnual.milestones = uniqueAnnual;
-          milestoneSyncMsg += `\n🏆 연도대상 클래스 기준 동적 반영 완료: ${uniqueAnnual.map(u => u.name + '(' + u.reward + ')').join(', ')}`;
-        }
-      }
-
-      // --- 3. 지점 총 실적 및 현재 로그인 유저 개별 실적 동기화 매칭 ---
-      const profile = window.INCENTIVE_DATABASE.agentProfile;
-      let userSyncMessage = "";
-      let updateCount = 0;
+      const branchDataList = [];
       
-      if (profile.role === 'bm') {
-        // 지점장 모드: 엑셀의 '지점 총계' 요약 실적을 적용
-        if (parsedStats.contracts !== null) {
-          profile.currentStats.contracts = parsedStats.contracts;
-          updateCount++;
-        }
-        if (parsedStats.premiums !== null) {
-          profile.currentStats.premiums = parsedStats.premiums;
-          updateCount++;
-        }
-        if (parsedStats.recruits !== null) {
-          profile.currentStats.recruits = parsedStats.recruits;
-          updateCount++;
-        }
+      rawRows.forEach((row, rowIndex) => {
+        if (!Array.isArray(row) || row.length < 2) return;
+        const colA = String(row[0]).trim();
+        const colB = String(row[1]).trim();
         
-        userSyncMessage = `\n\n📢 지점장(관리자) 모드: 지점 전체 총합 실적이 적용되었습니다.`;
-      } else {
-        // FP 모드: 로그인한 FP의 이름("김한화")과 엑셀 리스트 매핑
-        const loginNameBase = profile.name.replace(/FP|지점장|\s+/g, '');
-        let matchedStats = null;
-        
-        for (const name in employeeStats) {
-          const nameClean = name.replace(/FP|지점장|\s+/g, '');
-          if (nameClean.includes(loginNameBase) || loginNameBase.includes(nameClean)) {
-            matchedStats = employeeStats[name];
-            break;
-          }
-        }
-
-        if (matchedStats) {
-          profile.currentStats.contracts = matchedStats.contracts;
-          profile.currentStats.premiums = matchedStats.premiums;
-          profile.currentStats.recruits = matchedStats.recruits;
-          profile.currentStats.two连续 = matchedStats.two连续;
-          profile.currentStats.points = matchedStats.points;
-          updateCount++;
+        // 지점이 포함되고 헤더나 빈 행이 아닌 경우
+        if (colA.includes('지점') && colA !== '소속' && !colA.includes('지점명') && !colA.includes('소속지점')) {
+          const monthlyPremium = parseExcelAmount(row[3]); // D열 (Index 3)
+          const convertedPremium = parseExcelAmount(row[26]); // AA열 (Index 26)
           
-          userSyncMessage = `\n\n📢 로그인 FP [${profile.name}] 님 실적 자동 매핑 완료!\n• 가동 건수: ${profile.currentStats.contracts}건\n• 초회 보험료: ${profile.currentStats.premiums.toLocaleString()}원\n• 당월 도입: ${profile.currentStats.recruits}명\n• 2W 연속 가동: ${profile.currentStats.two连续}주차\n• 연도대상 pt: ${profile.currentStats.points.toLocaleString()}pt`;
-        } else {
-          // 일치하는 개별 FP 데이터가 없는 경우, 총괄 요약 실적의 15%를 개인 실적으로 시뮬레이션 분배 설정
-          if (parsedStats.contracts !== null) profile.currentStats.contracts = Math.max(1, Math.round(parsedStats.contracts * 0.15));
-          if (parsedStats.premiums !== null) profile.currentStats.premiums = Math.max(100000, Math.round(parsedStats.premiums * 0.15));
-          if (parsedStats.recruits !== null) profile.currentStats.recruits = Math.max(0, Math.round(parsedStats.recruits * 0.15));
-          profile.currentStats.two连续 = 2; // fallback
-          profile.currentStats.points = 8500; // fallback
-          updateCount++;
-          
-          userSyncMessage = `\n\n⚠️ 엑셀 내에 [${profile.name}] 님의 개별 실적이 감지되지 않아 지점 총합 실적의 15% 수준이 시뮬레이션 매핑되었습니다.`;
+          branchDataList.push({
+            name: colA,
+            leader: colB,
+            monthlyPremium: monthlyPremium,
+            convertedPremium: convertedPremium
+          });
         }
-      }
+      });
 
-      if (updateCount > 0) {
-        const updateWidgetValues = () => {
-          const contractsEl = document.getElementById('quick-stat-contracts');
-          const premiumsEl = document.getElementById('quick-stat-premiums');
-          const recruitsEl = document.getElementById('quick-stat-recruits');
-
-          if (contractsEl) contractsEl.textContent = profile.currentStats.contracts;
-          if (premiumsEl) premiumsEl.textContent = profile.currentStats.premiums.toLocaleString();
-          if (recruitsEl) recruitsEl.textContent = profile.currentStats.recruits;
-        };
-
-        updateWidgetValues();
-        if (typeof window.refreshApp === 'function') {
-          window.refreshApp();
-        }
+      if (branchDataList.length > 0) {
+        window.currentBranchDataList = branchDataList;
         
-        let alertMsg = `지점 실적 Excel 연동 성공!\n\n• 가동 건수: ${profile.currentStats.contracts}건\n• 초회 보험료: ${profile.currentStats.premiums.toLocaleString()}원\n• 당월 도입: ${profile.currentStats.recruits}명`;
-        if (profile.role !== 'bm') {
-          alertMsg += `\n• 2W 연속 가동: ${profile.currentStats.two连续}주차\n• 연도대상 pt: ${profile.currentStats.points.toLocaleString()}pt`;
+        const selector = document.getElementById('branch-selector');
+        const container = document.getElementById('branch-select-container');
+        if (selector && container) {
+          container.style.display = 'block';
+          // Clear and fill dropdown
+          selector.innerHTML = '<option value="">-- 소속 지점을 선택하세요 --</option>';
+          branchDataList.forEach((b, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = `${b.name} (${b.leader} 지점장)`;
+            selector.appendChild(option);
+          });
+          
+          container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          
+          alert(`엑셀 파일 연동 완료!\n\n총 ${branchDataList.length}개의 지점 데이터를 감지했습니다. 아래 '소속 지점 선택'에서 지점을 선택해 주세요.`);
         }
-        if (milestoneSyncMsg) {
-          alertMsg += `\n\n${milestoneSyncMsg}`;
-        }
-        alertMsg += `\n\n대시보드와 요약 정보에 즉시 동기화되었습니다.`;
-        alert(alertMsg);
       } else {
-        alert("업로드된 엑셀 파일에서 유효한 실적 데이터(건수, 보험료, 도입 인원)를 감지하지 못했습니다.\n\n셀 내용에 '가동건수', '초회보험료', '도입가동' 등의 텍스트와 숫자가 기재되어 있는지 확인해 주세요.");
+        alert("업로드된 엑셀 파일에서 지점 데이터(A열에 '지점'이 포함된 행)를 찾을 수 없습니다.");
       }
 
     } catch (err) {
@@ -1361,16 +1574,19 @@
     }
   }
 
-  function findNumberInRow(row, startIdx) {
-    for (let i = startIdx; i < row.length; i++) {
-      const val = row[i];
-      if (typeof val === 'number') return val;
-      if (typeof val === 'string') {
-        const clean = val.replace(/,/g, '').match(/\d+/);
-        if (clean) return parseInt(clean[0], 10);
-      }
+  function parseExcelAmount(val) {
+    if (val === undefined || val === null) return 0;
+    let num = parseFloat(String(val).replace(/,/g, ''));
+    if (isNaN(num)) return 0;
+    // float less than 1000 like 33.104
+    if (num < 1000) {
+      return Math.round(num * 1000000);
     }
-    return null;
+    // integer less than 100000 like 33104
+    if (num < 100000) {
+      return Math.round(num * 1000);
+    }
+    return Math.round(num);
   }
 
 })();
